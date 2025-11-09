@@ -17,6 +17,7 @@ ghc-options:
 
 dependencies:
   - base
+  - aeson
   - bytestring
   - data-default
   - free
@@ -29,6 +30,7 @@ dependencies:
   - turtle
   - vector
   - vector-algorithms
+  - yaml
 
 library:
   source-dirs: ./src/
