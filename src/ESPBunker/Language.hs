@@ -95,7 +95,15 @@ instance Default SensorOptions where
   def = SensorOptions "" Nothing Nothing
 
 -- | Switch https://esphome.io/components/switch/
-data Switch (name :: Symbol) (pin :: Nat) = Switch
+data
+  Switch -- (platform :: Platform )
+    (name :: Symbol)
+    (pin :: Nat)
+  = Switch
+
+--------------------------------------------------------------------------------
+
+-- data Platform = GPIO | Template | Output
 
 --------------------------------------------------------------------------------
 
@@ -229,12 +237,15 @@ data ESPF :: Type -> Type -> Type -> Type where
     next ->
     ESPF (Board names freePins) (Board newNames newFreePins) next
   MkLight ::
-    forall name names freePins newNames next.
+    forall name outputName names freePins newNames next.
     ( KnownSymbol name,
+      KnownSymbol outputName,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    next -> ESPF (Board names freePins) (Board newNames freePins) next
+    (Output outputName) ->
+    next ->
+    ESPF (Board names freePins) (Board newNames freePins) next
   MkScript ::
     forall name names freePins newNames next.
     ( KnownSymbol name,
@@ -334,7 +345,7 @@ instance IxFunctor ESPF where
   imap f (MkBoard @board next) = MkBoard @board (f next)
   imap f (MkButton @name @pin next) = MkButton @name @pin (f next)
   imap f (MkCover @name @open @close next) = MkCover @name @open @close (f next)
-  imap f (MkLight @name next) = MkLight @name (f next)
+  imap f (MkLight @name outp next) = MkLight @name outp (f next)
   imap f (MkNumber @name options next) = MkNumber @name options (f next)
   imap f (MkOutput @name @pin next) = MkOutput @name @pin (f next)
   imap f (MkScript @name options next) = MkScript @name options (f next)
@@ -403,13 +414,16 @@ script ::
 script actions = iliftFree $ MkScript @name @names @freePins actions Script
 
 light ::
-  forall name names freePins newNames.
+  forall name names freePins newNames outputName.
   ( KnownSymbol name,
+    KnownSymbol outputName,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names
   ) =>
+  Output outputName ->
   ESPM (Board names freePins) (Board newNames freePins) (Light name)
-light = iliftFree $ MkLight @name @names @freePins Light
+light outp =
+  iliftFree $ MkLight @name @outputName @names @freePins @newNames outp Light
 
 sensor ::
   forall name names freePins newNames.

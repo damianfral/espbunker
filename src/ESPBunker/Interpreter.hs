@@ -315,14 +315,16 @@ interpretESP (Free espf) =
                 )
               ]
        in yamlNode : interpretESP next
-    MkLight @name next ->
+    MkLight @name @output _output next ->
       let n = symbolVal (Proxy @name)
+          outputName = symbolVal (Proxy @output)
           yamlNode =
             object
               [ ( "light",
                   object
                     [ ("platform", String "rgb"),
-                      ("name", String (T.pack n))
+                      ("name", String (T.pack n)),
+                      ("name", String (T.pack outputName))
                     ]
                 )
               ]
