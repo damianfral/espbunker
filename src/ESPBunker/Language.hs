@@ -1,6 +1,7 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
@@ -24,13 +25,13 @@ import Relude hiding (State, return, (>>=))
 
 --------------------------------------------------------------------------------
 
-data Switch (name :: Symbol) (pin :: Nat) = Switch
+-- * Components
 
+-- | Binary output https://esphome.io/components/binary_output/
+data BinaryOutput (name :: Symbol) (pin :: Nat) = BinaryOutput
+
+-- | Binary sensor https://esphome.io/components/binary_sensor/
 data BinarySensor (name :: Symbol) (pin :: Nat) = BinarySensor
-
-data Light (name :: Symbol) = Light
-
-data Script (name :: Symbol) = Script
 
 data BinarySensorOptions = BinarySensorOptions
   { onPress :: ESPAction (),
@@ -45,14 +46,79 @@ instance Default BinarySensorOptions where
     where
       noAction = ireturn ()
 
+-- | Cover https://esphome.io/components/cover/
+data Cover (name :: Symbol) = Cover
+
+-- | Light https://esphome.io/components/light/
+data Light (name :: Symbol) = Light
+
+-- | Number https://esphome.io/components/number/
+data Number (name :: Symbol) = Number
+
+data NumberOptions = NumberOptions
+  { numberMin :: Maybe Double,
+    numberMax :: Maybe Double,
+    numberStep :: Maybe Double,
+    numberUnit :: Maybe Text
+  }
+
+instance Default NumberOptions where
+  def = NumberOptions Nothing Nothing Nothing Nothing
+
+-- | Output https://esphome.io/components/output/
+data Output (name :: Symbol) = Output
+
+-- | Script https://esphome.io/components/script/
+data Script (name :: Symbol) = Script
+
+-- | Select https://esphome.io/components/select/
+data Select (name :: Symbol) = Select
+
+data SelectOptions = SelectOptions
+  { selectOptions :: [Text],
+    selectInitial :: Maybe Text
+  }
+
+instance Default SelectOptions where
+  def = SelectOptions [] Nothing
+
+-- | Sensor https://esphome.io/components/sensor/
+data Sensor (name :: Symbol) = Sensor
+
+data SensorOptions = SensorOptions
+  { sensorUnit :: Text,
+    sensorAccuracy :: Maybe Int,
+    sensorIntervalMs :: Maybe Int
+  }
+
+instance Default SensorOptions where
+  def = SensorOptions "" Nothing Nothing
+
+-- | Switch https://esphome.io/components/switch/
+data Switch (name :: Symbol) (pin :: Nat) = Switch
+
+--------------------------------------------------------------------------------
+
 data ESPActionF f g next where
-  TurnOnSwitch :: (KnownSymbol name) => Switch name pin -> next -> ESPActionF f g next
+  CloseCover :: (KnownSymbol name) => Cover name -> next -> ESPActionF f g next
+  DecrementNumber :: (KnownSymbol name) => Number name -> Double -> next -> ESPActionF f g next
+  Delay :: Int -> next -> ESPActionF f g next
+  IncrementNumber :: (KnownSymbol name) => Number name -> Double -> next -> ESPActionF f g next
+  LogMsg :: Text -> next -> ESPActionF f g next
+  OpenCover :: (KnownSymbol name) => Cover name -> next -> ESPActionF f g next
+  RunScript :: (KnownSymbol name) => Script name -> next -> ESPActionF f g next
+  SampleSensor :: (KnownSymbol name) => Sensor name -> next -> ESPActionF f g next
+  SampleTextSensor :: (KnownSymbol name) => Sensor name -> next -> ESPActionF f g next
+  SetNumber :: (KnownSymbol name) => Number name -> Double -> next -> ESPActionF f g next
+  SetOutputValue :: (KnownSymbol name) => Output name -> Double -> next -> ESPActionF f g next
+  StopCover :: (KnownSymbol name) => Cover name -> next -> ESPActionF f g next
+  ToggleBinaryOutput :: (KnownSymbol name) => BinaryOutput name pin -> next -> ESPActionF f g next
+  TurnOffLight :: (KnownSymbol name) => Light name -> next -> ESPActionF f g next
+  TurnOffOutput :: (KnownSymbol name) => Output name -> next -> ESPActionF f g next
   TurnOffSwitch :: (KnownSymbol name) => Switch name pin -> next -> ESPActionF f g next
   TurnOnLight :: (KnownSymbol name) => Light name -> next -> ESPActionF f g next
-  TurnOffLight :: (KnownSymbol name) => Light name -> next -> ESPActionF f g next
-  RunScript :: (KnownSymbol name) => Script name -> next -> ESPActionF f g next
-  LogMsg :: Text -> next -> ESPActionF f g next
-  Delay :: Int -> next -> ESPActionF f g next
+  TurnOnOutput :: (KnownSymbol name) => Output name -> next -> ESPActionF f g next
+  TurnOnSwitch :: (KnownSymbol name) => Switch name pin -> next -> ESPActionF f g next
 
 instance IxFunctor ESPActionF where
   imap f (TurnOnSwitch s next) = TurnOnSwitch s $ f next
@@ -62,6 +128,18 @@ instance IxFunctor ESPActionF where
   imap f (RunScript sc next) = RunScript sc $ f next
   imap f (LogMsg msg next) = LogMsg msg $ f next
   imap f (Delay ms next) = Delay ms $ f next
+  imap f (SetNumber n v next) = SetNumber n v (f next)
+  imap f (IncrementNumber n v next) = IncrementNumber n v (f next)
+  imap f (DecrementNumber n v next) = DecrementNumber n v (f next)
+  imap f (SetOutputValue n v next) = SetOutputValue n v (f next)
+  imap f (TurnOnOutput n next) = TurnOnOutput n (f next)
+  imap f (TurnOffOutput n next) = TurnOffOutput n (f next)
+  imap f (ToggleBinaryOutput n next) = ToggleBinaryOutput n (f next)
+  imap f (OpenCover n next) = OpenCover n (f next)
+  imap f (CloseCover n next) = CloseCover n (f next)
+  imap f (StopCover n next) = StopCover n (f next)
+  imap f (SampleSensor n next) = SampleSensor n (f next)
+  imap f (SampleTextSensor n next) = SampleTextSensor n (f next)
 
 newtype IxIdentity i j a = IxIdentity a
 
@@ -134,6 +212,8 @@ data Board (names :: [Symbol]) (pins :: [Nat]) = Board
 
 --------------------------------------------------------------------------------
 
+-- * DSL Functor
+
 data ESPF :: Type -> Type -> Type -> Type where
   MkBoard :: forall board next. next -> ESPF board board next
   MkBinarySensor ::
@@ -174,13 +254,93 @@ data ESPF :: Type -> Type -> Type -> Type where
       newFreePins ~ Remove pin freePins
     ) =>
     next -> ESPF (Board names freePins) (Board newNames newFreePins) next
+  MkSensor ::
+    forall name names freePins newNames next.
+    ( KnownSymbol name,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names
+    ) =>
+    SensorOptions ->
+    next ->
+    ESPF (Board names freePins) (Board newNames freePins) next
+  MkTextSensor ::
+    forall name names freePins newNames next.
+    ( KnownSymbol name,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names
+    ) =>
+    next ->
+    ESPF (Board names freePins) (Board newNames freePins) next
+  MkNumber ::
+    forall name names freePins newNames next.
+    ( KnownSymbol name,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names
+    ) =>
+    NumberOptions ->
+    next ->
+    ESPF (Board names freePins) (Board newNames freePins) next
+  MkOutput ::
+    forall name pin names freePins newNames newFreePins next.
+    ( KnownSymbol name,
+      KnownNat pin,
+      AssertPinIsAvailable pin freePins,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names,
+      newFreePins ~ Remove pin freePins
+    ) =>
+    next ->
+    ESPF (Board names freePins) (Board newNames newFreePins) next
+  MkBinaryOutput ::
+    forall name pin names freePins newNames newFreePins next.
+    ( KnownSymbol name,
+      KnownNat pin,
+      AssertPinIsAvailable pin freePins,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names,
+      newFreePins ~ Remove pin freePins
+    ) =>
+    next ->
+    ESPF (Board names freePins) (Board newNames newFreePins) next
+  MkCover ::
+    forall name open close names freePins newNames newFreePins next.
+    ( KnownSymbol name,
+      KnownNat open,
+      KnownNat close,
+      AssertPinIsAvailable open freePins,
+      AssertPinIsAvailable close freePins,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names,
+      newFreePins ~ Remove close (Remove open freePins)
+    ) =>
+    next ->
+    ESPF (Board names freePins) (Board newNames newFreePins) next
+  MkButton ::
+    forall name pin names freePins newNames newFreePins next.
+    ( KnownSymbol name,
+      KnownNat pin,
+      AssertPinIsAvailable pin freePins,
+      AssertNameIsNotUsed name names,
+      newNames ~ Insert name names,
+      newFreePins ~ Remove pin freePins
+    ) =>
+    next ->
+    ESPF (Board names freePins) (Board newNames newFreePins) next
 
 instance IxFunctor ESPF where
+  imap f (MkBinaryOutput @name @pin next) = MkBinaryOutput @name @pin (f next)
+  imap f (MkBinarySensor @name @pin options next) =
+    MkBinarySensor @name @pin options (f next)
   imap f (MkBoard @board next) = MkBoard @board (f next)
-  imap f (MkBinarySensor @name @pin options next) = MkBinarySensor @name @pin options (f next)
+  imap f (MkButton @name @pin next) = MkButton @name @pin (f next)
+  imap f (MkCover @name @open @close next) = MkCover @name @open @close (f next)
   imap f (MkLight @name next) = MkLight @name (f next)
+  imap f (MkNumber @name options next) = MkNumber @name options (f next)
+  imap f (MkOutput @name @pin next) = MkOutput @name @pin (f next)
   imap f (MkScript @name options next) = MkScript @name options (f next)
+  imap f (MkSensor @name options next) = MkSensor @name options (f next)
   imap f (MkSwitch @name @pin next) = MkSwitch @name @pin (f next)
+  imap f (MkTextSensor @name next) = MkTextSensor @name (f next)
 
 --------------------------------------------------------------------------------
 
@@ -189,8 +349,8 @@ type ESPM from to a = IxFree ESPF from to a
 -- esp32c3 :: forall board. ESPM board board ()
 type ESP32C3 = (Board '[] '[0, 1])
 
-esp32c3 :: ESPM ESP32C3 ESP32C3 ()
-esp32c3 = iliftFree $ MkBoard @ESP32C3 ()
+board :: forall board. ESPM board board ()
+board = iliftFree $ MkBoard @board ()
 
 switch ::
   forall name pin names freePins newNames newFreePins.
@@ -251,6 +411,42 @@ light ::
   ESPM (Board names freePins) (Board newNames freePins) (Light name)
 light = iliftFree $ MkLight @name @names @freePins Light
 
+sensor ::
+  forall name names freePins newNames.
+  ( KnownSymbol name,
+    AssertNameIsNotUsed name names,
+    newNames ~ Insert name names
+  ) =>
+  SensorOptions ->
+  IxFree ESPF (Board names freePins) (Board newNames freePins) ()
+sensor opts = iliftFree (MkSensor @name opts ())
+
+output ::
+  forall name pin names freePins newNames newFreePins.
+  ( KnownSymbol name,
+    KnownNat pin,
+    AssertPinIsAvailable pin freePins,
+    AssertNameIsNotUsed name names,
+    newNames ~ Insert name names,
+    newFreePins ~ Remove pin freePins
+  ) =>
+  IxFree ESPF (Board names freePins) (Board newNames newFreePins) ()
+output = iliftFree (MkOutput @name @pin ())
+
+cover ::
+  forall name open close names freePins newNames newFreePins.
+  ( KnownSymbol name,
+    KnownNat open,
+    KnownNat close,
+    AssertPinIsAvailable open freePins,
+    AssertPinIsAvailable close freePins,
+    AssertNameIsNotUsed name names,
+    newNames ~ Insert name names,
+    newFreePins ~ Remove close (Remove open freePins)
+  ) =>
+  IxFree ESPF (Board names freePins) (Board newNames newFreePins) ()
+cover = iliftFree (MkCover @name @open @close ())
+
 --------------------------------------------------------------------------------
 
 (>>=) :: IxFree ESPF i j a -> (a -> IxFree ESPF j k b) -> IxFree ESPF i k b
@@ -258,19 +454,5 @@ light = iliftFree $ MkLight @name @names @freePins Light
 
 --------------------------------------------------------------------------------
 
-done :: IxFree ESPF i i ()
+done :: ESPM i i ()
 done = ireturn ()
-
-example' = do
-  -- We are forced to use explicit bindings due to the indexed (>>>=)
-  _ <- esp32c3
-  r1 <- switch @"switch1" @0
-  _ <-
-    binarySensor @"btn1" @1
-      def
-        { onPress = do
-            turnOn r1
-            delay 1000
-            turnOff r1
-        }
-  done
