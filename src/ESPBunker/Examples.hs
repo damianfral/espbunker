@@ -15,6 +15,7 @@ example1 :: ESPM ESP32C3 _ ()
 example1 = do
   -- We are forced to use explicit bindings due to the indexed (>>>=)
   _ <- board @ESP32C3
+  _ <- esphome @"test"
   r1 <- switch @"switch1" @0
   r <- output @"r" @2
   g <- output @"g" @3

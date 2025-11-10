@@ -18,6 +18,7 @@ ghc-options:
 dependencies:
   - base
   - aeson
+  - aeson-casing
   - data-default
   - indexed-free
   - indexed
