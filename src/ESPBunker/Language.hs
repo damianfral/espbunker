@@ -27,7 +27,6 @@ import Data.Aeson.KeyMap (KeyMap)
 import qualified Data.Aeson.KeyMap as KM
 import Data.Default
 import qualified Data.Text as T
-import qualified Data.Text.Encoding as TE
 import Data.Type.Bool (Not)
 import qualified Data.Vector as V
 import qualified Data.Yaml as YAML
@@ -867,12 +866,9 @@ interpretESP (Free espf) =
 
 --------------------------------------------------------------------------------
 
-generateYAML :: IxFree ESPF i j a -> Text
+generateYAML :: IxFree ESPF i j a -> ByteString
 generateYAML prog =
-  let nodes = interpretESP prog in yamlToText $ Array $ V.fromList nodes
-
-yamlToText :: Value -> Text
-yamlToText = TE.decodeUtf8 . YAML.encode
+  let nodes = interpretESP prog in YAML.encode $ Array $ V.fromList nodes
 
 class KeyMapOptions a where
   toKeyMap :: a -> KeyMap Value

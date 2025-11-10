@@ -18,32 +18,27 @@ ghc-options:
 dependencies:
   - base
   - aeson
-  - aeson-casing
-  - bytestring
   - data-default
-  - free
   - indexed-free
   - indexed
   - optparse-applicative
   - optparse-generic
   - relude
   - text
-  - turtle
   - vector
-  - vector-algorithms
   - yaml
 
 library:
   source-dirs: ./src/
 
-# executables:
-#   espbunker:
-#     main: Main.hs
-#     source-dirs: ./src/
-#     ghc-options:
-#       - -rtsopts
-#       - -threaded
-#       - -with-rtsopts=-N
+executables:
+  espbunker:
+    main: Main.hs
+    source-dirs: ./src/
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -with-rtsopts=-N
 
 # tests:
 #   espbunker-test:
