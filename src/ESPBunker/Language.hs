@@ -491,11 +491,10 @@ instance IxFunctor ESPF where
 type ESPM from to a = IxFree ESPF from to a
 
 type ESP32C3 =
-  Board "esp32-c3-devkitm-1" '[] '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-
--- MkBoard ::
---   forall board names pins boardName next .
---   (board ~ Board boardName names pins) => next -> ESPF board board next
+  Board
+    "esp32-c3-devkitm-1"
+    '[]
+    '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 19, 20, 21]
 
 board ::
   forall board names pins boardName.
