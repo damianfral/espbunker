@@ -278,16 +278,30 @@ type family PlatformToOptions (component :: k) (platform :: Platform) :: Type wh
 
 -- The combined type-level state that the IxFree will index
 -- Define Board as a kind with two type-level lists
-data Board (names :: [Symbol]) (pins :: [Nat]) = Board
+data Board (boardName :: Symbol) (names :: [Symbol]) (pins :: [Nat]) = Board
 
 --------------------------------------------------------------------------------
 
 -- * DSL Functor
 
 data ESPF :: Type -> Type -> Type -> Type where
-  MkBoard :: forall board next. next -> ESPF board board next
+  MkBoard ::
+    forall board names pins boardName next.
+    (board ~ Board boardName names pins) => next -> ESPF board board next
   MkBinarySensor ::
-    forall name platform pin names freePins newNames newFreePins options platformSymbol next.
+    forall
+      name
+      platform
+      pin
+      names
+      freePins
+      newNames
+      newFreePins
+      options
+      platformSymbol
+      board
+      boardName
+      next.
     ( KnownSymbol name,
       KnownNat pin,
       AssertNameIsNotUsed name names,
@@ -297,14 +311,19 @@ data ESPF :: Type -> Type -> Type -> Type where
       options ~ PlatformToOptions BinarySensor platform,
       KeyMapOptions options,
       platformSymbol ~ PlatformToSymbol platform,
-      KnownSymbol platformSymbol
+      KnownSymbol platformSymbol,
+      KnownSymbol boardName,
+      board ~ Board boardName names freePins
     ) =>
     BinarySensorOptions ->
     options ->
     next ->
-    ESPF (Board names freePins) (Board newNames newFreePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
   MkLight ::
-    forall name platform names freePins newNames options platformSymbol next.
+    forall name platform names freePins newNames options platformSymbol boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names,
@@ -317,18 +336,24 @@ data ESPF :: Type -> Type -> Type -> Type where
     LightOptions ->
     options ->
     next ->
-    ESPF (Board names freePins) (Board newNames freePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames freePins)
+      next
   MkScript ::
-    forall name names freePins newNames next.
+    forall name names freePins newNames boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
     ESPAction ->
     next ->
-    ESPF (Board names freePins) (Board newNames freePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames freePins)
+      next
   MkSwitch ::
-    forall name pin names freePins newNames newFreePins next.
+    forall name pin names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
@@ -336,35 +361,48 @@ data ESPF :: Type -> Type -> Type -> Type where
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins
     ) =>
-    next -> ESPF (Board names freePins) (Board newNames newFreePins) next
+    next ->
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
   MkSensor ::
-    forall name names freePins newNames next.
+    forall name names freePins newNames boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
     SensorOptions ->
     next ->
-    ESPF (Board names freePins) (Board newNames freePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames freePins)
+      next
   MkTextSensor ::
-    forall name names freePins newNames next.
+    forall name names freePins newNames boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
     next ->
-    ESPF (Board names freePins) (Board newNames freePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames freePins)
+      next
   MkNumber ::
-    forall name names freePins newNames next.
+    forall name names freePins newNames boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
     NumberOptions ->
     next ->
-    ESPF (Board names freePins) (Board newNames freePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames freePins)
+      next
   MkOutput ::
-    forall name pin names freePins newNames newFreePins next.
+    forall name pin names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
@@ -373,9 +411,12 @@ data ESPF :: Type -> Type -> Type -> Type where
       newFreePins ~ Remove pin freePins
     ) =>
     next ->
-    ESPF (Board names freePins) (Board newNames newFreePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
   MkBinaryOutput ::
-    forall name pin names freePins newNames newFreePins next.
+    forall name pin names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
@@ -384,18 +425,24 @@ data ESPF :: Type -> Type -> Type -> Type where
       newFreePins ~ Remove pin freePins
     ) =>
     next ->
-    ESPF (Board names freePins) (Board newNames newFreePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
   MkCover ::
-    forall name platform names freePins newNames newFreePins next.
+    forall name platform names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names,
       KnownSymbol (PlatformToSymbol platform)
     ) =>
     next ->
-    ESPF (Board names freePins) (Board newNames newFreePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
   MkButton ::
-    forall name pin names freePins newNames newFreePins next.
+    forall name pin names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
@@ -404,7 +451,10 @@ data ESPF :: Type -> Type -> Type -> Type where
       newFreePins ~ Remove pin freePins
     ) =>
     next ->
-    ESPF (Board names freePins) (Board newNames newFreePins) next
+    ESPF
+      (Board boardName names freePins)
+      (Board boardName newNames newFreePins)
+      next
 
 instance IxFunctor ESPF where
   imap f (MkBinaryOutput @name @pin next) = MkBinaryOutput @name @pin (f next)
@@ -426,14 +476,20 @@ instance IxFunctor ESPF where
 
 type ESPM from to a = IxFree ESPF from to a
 
--- esp32c3 :: forall board. ESPM board board ()
-type ESP32C3 = (Board '[] '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+type ESP32C3 =
+  Board "esp32-c3-devkitm-1" '[] '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
-board :: forall board names pins. ESPM board board (Board names pins)
+-- MkBoard ::
+--   forall board names pins boardName next .
+--   (board ~ Board boardName names pins) => next -> ESPF board board next
+
+board ::
+  forall board names pins boardName.
+  (board ~ Board boardName names pins) => ESPM board board (Board boardName names pins)
 board = iliftFree $ MkBoard @board Board
 
 switch ::
-  forall name pin names freePins newNames newFreePins.
+  forall name pin names freePins newNames newFreePins boardName.
   ( KnownSymbol name,
     KnownNat pin,
     AssertNameIsNotUsed name names,
@@ -441,13 +497,15 @@ switch ::
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins
   ) =>
-  ESPM (Board names freePins) (Board newNames newFreePins) (Switch name pin)
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames newFreePins)
+    (Switch name pin)
 switch =
-  iliftFree
-    $ MkSwitch @name @pin @names @freePins @newNames @newFreePins Switch
+  iliftFree $ MkSwitch @name @pin @names @freePins @newNames @newFreePins Switch
 
 binarySensor ::
-  forall name platform pin names freePins newNames newFreePins options.
+  forall name platform pin names freePins newNames newFreePins options boardName.
   ( KnownSymbol name,
     KnownNat pin,
     AssertNameIsNotUsed name names,
@@ -456,13 +514,14 @@ binarySensor ::
     newFreePins ~ Remove pin freePins,
     options ~ PlatformToOptions BinarySensor platform,
     KnownSymbol (PlatformToSymbol platform),
-    KeyMapOptions options
+    KeyMapOptions options,
+    KnownSymbol boardName
   ) =>
   BinarySensorOptions ->
   options ->
   ESPM
-    (Board names freePins)
-    (Board newNames newFreePins)
+    (Board boardName names freePins)
+    (Board boardName newNames newFreePins)
     (BinarySensor name platform pin)
 binarySensor options platformOptions =
   iliftFree
@@ -479,17 +538,17 @@ binarySensor options platformOptions =
       BinarySensor
 
 script ::
-  forall name names freePins newNames.
+  forall name names freePins newNames boardName.
   ( KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names
   ) =>
   ESPAction ->
-  ESPM (Board names freePins) (Board newNames freePins) (Script name)
+  ESPM (Board boardName names freePins) (Board boardName newNames freePins) (Script name)
 script actions = iliftFree $ MkScript @name @names @freePins actions Script
 
 light ::
-  forall name platform names freePins newNames options platformSymbol.
+  forall name platform names freePins newNames options platformSymbol boardName.
   ( KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names,
@@ -500,7 +559,10 @@ light ::
   ) =>
   LightOptions ->
   options ->
-  ESPM (Board names freePins) (Board newNames freePins) (Light name)
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames freePins)
+    (Light name)
 light options platformOptions =
   iliftFree
     $ MkLight
@@ -514,17 +576,21 @@ light options platformOptions =
       Light
 
 sensor ::
-  forall name names freePins newNames.
+  forall name names freePins newNames boardName.
   ( KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names
   ) =>
   SensorOptions ->
-  IxFree ESPF (Board names freePins) (Board newNames freePins) (Sensor name)
+  IxFree
+    ESPF
+    (Board boardName names freePins)
+    (Board boardName newNames freePins)
+    (Sensor name)
 sensor opts = iliftFree (MkSensor @name opts Sensor)
 
 output ::
-  forall name pin names freePins newNames newFreePins.
+  forall name pin names freePins newNames newFreePins boardName.
   ( KnownSymbol name,
     KnownNat pin,
     AssertPinIsAvailable pin freePins,
@@ -532,17 +598,21 @@ output ::
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins
   ) =>
-  IxFree ESPF (Board names freePins) (Board newNames newFreePins) (Output name)
+  IxFree
+    ESPF
+    (Board boardName names freePins)
+    (Board boardName newNames newFreePins)
+    (Output name)
 output = iliftFree (MkOutput @name @pin Output)
 
 cover ::
-  forall name platform names freePins newNames newFreePins.
+  forall name platform names freePins newNames newFreePins boardName.
   ( KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names,
     KnownSymbol (PlatformToSymbol platform)
   ) =>
-  IxFree ESPF (Board names freePins) (Board newNames newFreePins) (Cover name)
+  IxFree ESPF (Board boardName names freePins) (Board boardName newNames newFreePins) (Cover name)
 cover = iliftFree (MkCover @name @platform Cover)
 
 --------------------------------------------------------------------------------
@@ -594,10 +664,7 @@ interpretAction (Free espf) = case espf of
         yamlNode =
           Object
             $ KM.singleton "number.set"
-            $ object
-              [ ("id", String (T.pack n)),
-                ("value", String (show val))
-              ]
+            $ object [("id", String (T.pack n)), ("value", String (show val))]
      in [yamlNode] <> interpretAction next
   IncrementNumber @name _number _val next ->
     let n = symbolVal (Proxy @name)
@@ -654,11 +721,30 @@ interpretAction (Free espf) = case espf of
 
 -- * Main interpreter
 
-interpretESP :: IxFree ESPF i j a -> [Value]
+interpretESP ::
+  forall board board' boardName boardNames boardPins.
+  (board ~ Board boardName boardNames boardPins, KnownSymbol boardName) =>
+  ESPM board board' () -> [Value]
 interpretESP (Pure _) = []
 interpretESP (Free espf) =
   case espf of
-    MkBoard next -> interpretESP next
+    MkBoard next ->
+      let boardName = symbolVal (Proxy @boardName)
+          yamlNode =
+            object
+              [ ( "esp32",
+                  object
+                    [ ("board", toJSON boardName),
+                      ( "framework",
+                        object
+                          [ ("type", "arduino"),
+                            ("version", "latest")
+                          ]
+                      )
+                    ]
+                )
+              ]
+       in yamlNode : interpretESP next
     MkSwitch @name @pin next ->
       let n = symbolVal (Proxy @name)
           yamlNode =
@@ -825,7 +911,9 @@ interpretESP (Free espf) =
 
 --------------------------------------------------------------------------------
 
-generateYAML :: IxFree ESPF i j a -> ByteString
+generateYAML ::
+  (KnownSymbol boardName) =>
+  ESPM (Board boardName boardNames boardPins) board' () -> ByteString
 generateYAML prog =
   let nodes = interpretESP prog in YAML.encode $ Array $ V.fromList nodes
 
