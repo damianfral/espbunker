@@ -42,20 +42,17 @@ executables:
       - -threaded
       - -with-rtsopts=-N
 
-# tests:
-#   espbunker-test:
-#     main: Spec.hs
-#     source-dirs: test
-#     ghc-options:
-#       - -rtsopts
-#       - -threaded
-#       - -with-rtsopts=-N
-#     dependencies:
-#       - genvalidity
-#       - genvalidity-sydtest
-#       - genvalidity-text
-#       - espbunker
-#       - QuickCheck
-#       - sydtest
-#       - sydtest-discover
-#       - validity
+tests:
+  espbunker-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+      - -rtsopts
+      - -threaded
+      - -with-rtsopts=-N
+    dependencies:
+      - espbunker
+      - typed-process
+      - sydtest
+      - sydtest-discover
+      - path
