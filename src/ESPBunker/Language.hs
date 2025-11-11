@@ -1,9 +1,11 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
@@ -259,6 +261,47 @@ instance Default SwitchOptions where
 
 data Logger = Logger
 
+newtype Password = Password {unPassword :: Text}
+  deriving newtype (IsString, ToJSON)
+
+data Credentials = Credentials {ssid :: Text, password :: Password}
+  deriving (Generic)
+
+instance ToJSON Credentials
+
+newtype WebServerOptions = WebServerOptions {port :: Int}
+  deriving (Generic)
+
+instance Default Credentials where
+  def = Credentials "" ""
+
+instance Default WebServerOptions where
+  def = WebServerOptions 80
+
+data Wifi = Wifi
+
+data WifiOptions = WifiOptions
+  { wifiNetworks :: [Credentials],
+    wifiAP :: Maybe Credentials
+  }
+  deriving (Generic)
+
+instance Default WifiOptions where def = WifiOptions [] Nothing
+
+data OTA = OTA
+
+data OTAOptions = OTAOptions
+  { platform :: Text,
+    password :: Password
+  }
+  deriving (Generic)
+
+data API = API
+
+data WebServer = WebServer
+
+-- webServer :: Maybe WebServerOptions
+
 --------------------------------------------------------------------------------
 
 data ESPActionF f g next where
@@ -448,6 +491,8 @@ data ESPF :: Type -> Type -> Type -> Type where
       options
       platformSymbol
       boardName
+      board
+      newBoard
       next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
@@ -456,15 +501,11 @@ data ESPF :: Type -> Type -> Type -> Type where
       KnownSymbol platformSymbol,
       KeyMapOptions options,
       options ~ PlatformToOptions Light platform,
-      KeyMapOptions options
+      KeyMapOptions options,
+      board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins
     ) =>
-    LightOptions ->
-    options ->
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
-      next
+    LightOptions -> options -> next -> ESPF board newBoard next
   MkScript ::
     forall name names freePins newNames boardName board newBoard next.
     ( board ~ Board boardName names freePins,
@@ -581,6 +622,10 @@ data ESPF :: Type -> Type -> Type -> Type where
       (Board boardName names freePins)
       (Board boardName newNames newFreePins)
       next
+  MkWifi :: WifiOptions -> next -> ESPF board board next
+  MkAPI :: Password -> next -> ESPF board board next
+  MkOTA :: [OTAOptions] -> next -> ESPF board board next
+  MkWebServer :: WebServerOptions -> next -> ESPF board board next
 
 instance IxFunctor ESPF where
   imap f (MkESPHome @name next) = MkESPHome @name (f next)
@@ -599,6 +644,10 @@ instance IxFunctor ESPF where
   imap f (MkSensor @name @platform @pin options platformOptions next) = MkSensor @name @platform @pin options platformOptions (f next)
   imap f (MkSwitch @name @platform @pin opts next) = MkSwitch @name @platform @pin opts (f next)
   imap f (MkTextSensor @name next) = MkTextSensor @name (f next)
+  imap f (MkWifi opts next) = MkWifi opts (f next)
+  imap f (MkOTA opts next) = MkOTA opts (f next)
+  imap f (MkAPI opts next) = MkAPI opts (f next)
+  imap f (MkWebServer opts next) = MkWebServer opts (f next)
 
 --------------------------------------------------------------------------------
 
@@ -750,6 +799,25 @@ cover ::
     (Board boardName newNames newFreePins)
     (Cover name platform)
 cover opts = iliftFree (MkCover @name @platform opts Cover)
+
+wifi :: WifiOptions -> ESPM board board Wifi
+wifi opts = iliftFree $ MkWifi opts Wifi
+
+addNetwork :: Text -> Password -> WifiOptions -> WifiOptions
+addNetwork ssid p opts =
+  opts {wifiNetworks = wifiNetworks opts <> [Credentials ssid p]}
+
+ap :: Text -> Password -> WifiOptions -> WifiOptions
+ap ssid p opts = opts {wifiAP = Just $ def {ssid = ssid, password = p}}
+
+api :: Password -> ESPM board board API
+api p = iliftFree $ MkAPI p API
+
+ota :: [OTAOptions] -> ESPM board board OTA
+ota opts = iliftFree $ MkOTA opts OTA
+
+webServer :: Int -> ESPM board board WebServer
+webServer port = iliftFree $ MkWebServer (WebServerOptions port) WebServer
 
 --------------------------------------------------------------------------------
 
@@ -1069,6 +1137,31 @@ interpretESP (Free espf) =
                 ]
               ]
        in yamlNode : interpretESP next
+    MkWifi (WifiOptions {..}) next ->
+      let networksNode =
+            ( "networks",
+              Array $ V.fromList $ wifiNetworks <&> \(Credentials {..}) ->
+                object [("ssid", toJSON ssid), ("password", toJSON password)]
+            )
+          apNode =
+            wifiAP <&> \Credentials {..} ->
+              ( "ap",
+                object [("ssid", toJSON ssid), ("password", toJSON password)]
+              )
+          wifiNode =
+            SingleNode "wifi" $ fromList $ catMaybes [Just networksNode, apNode]
+       in wifiNode : interpretESP next
+    MkAPI password next ->
+      let apiNode = SingleNode "api" [("password", toJSON password)]
+       in apiNode : interpretESP next
+    MkOTA options next ->
+      let otaNode =
+            Node "ota" $ options <&> \(OTAOptions platform password) ->
+              [("platform", toJSON platform), ("password", toJSON password)]
+       in otaNode : interpretESP next
+    MkWebServer (WebServerOptions port) next ->
+      let webServerNode = SingleNode "web_server" [("port", toJSON port)]
+       in webServerNode : interpretESP next
 
 --------------------------------------------------------------------------------
 

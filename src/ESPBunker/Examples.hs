@@ -1,8 +1,13 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
@@ -10,6 +15,7 @@ module ESPBunker.Examples where
 
 import Data.Default
 import ESPBunker.Language
+import GHC.TypeLits (KnownSymbol)
 import Relude hiding ((>>=))
 
 -- | A common setup for all the examples.
@@ -18,6 +24,13 @@ commonSetup f = do
   _ <- board @ESP32C3
   _ <- esphome @"esphome-bunker"
   _ <- logger
+  _ <-
+    wifi
+      $ def
+      & addNetwork "my-ssid" "my-password"
+      & ap "my-ap-ssid" "my-ap-password"
+  -- _ <- webServer 80
+  _ <- ota [OTAOptions "esphome" "pass"]
   f done
 
 binarySensorExample :: ESPM ESP32C3 _ ()
@@ -84,6 +97,26 @@ switchExample :: ESPM ESP32C3 _ ()
 switchExample = commonSetup $ \_ -> do
   _ <- switch @"switch_with_restore" @GPIO @0 def {restoreMode = Just ALWAYS_ON}
   done
+
+data SomeESPM where
+  SomeESPM ::
+    forall board boardName names pins board' boardName' names' pins'.
+    ( board ~ Board boardName names pins,
+      board' ~ Board boardName' names' pins',
+      KnownSymbol boardName,
+      KnownSymbol boardName'
+    ) =>
+    ESPM board board' () -> SomeESPM
+
+examples :: [(Text, SomeESPM)]
+examples =
+  [ ("binary sensor", SomeESPM binarySensorExample),
+    ("cover", SomeESPM coverExample),
+    ("light", SomeESPM lightExample),
+    ("output", SomeESPM outputExample),
+    ("sensor", SomeESPM sensorExample),
+    ("switch", SomeESPM switchExample)
+  ]
 
 -- binaryOutputExample :: ESPM ESP32C3 _ ()
 -- binaryOutputExample = commonSetup $ \_ -> do
