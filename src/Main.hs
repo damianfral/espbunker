@@ -2,9 +2,9 @@
 
 module Main where
 
-import ESPBunker.Examples (example1)
+import ESPBunker.Examples
 import ESPBunker.Language
 import Relude
 
 main :: IO ()
-main = putBSLn $ generateYAML example1
+main = putBSLn $ generateYAML switchExample

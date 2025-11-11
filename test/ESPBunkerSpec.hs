@@ -19,18 +19,26 @@ setupSpec = setupAround $ tempDirSetupFunc "espbunker-example"
 spec :: Spec
 spec = setupSpec $ do
   describe "ESPBunker" $ do
-    testExample 1 example1
-    testExample 2 example2
-    testExample 3 example3
-    testExample 4 example4
+    -- testExample binaryOutputExample
+    -- testExample buttonExample
+    testExample "cover" coverExample
+    testExample "light" lightExample
+    testExample "output" outputExample
+    testExample "sensor" sensorExample
+    testExample "switch" switchExample
 
+-- testExample scriptExample
+-- testExample numberExample
+-- testExample selectExample
+-- testExample outputGPIOExample
+-- testExample lightOutExample
 testExample ::
   (KnownSymbol boardName) =>
-  Int ->
+  String ->
   ESPM (Board boardName boardNames boardPins) board' () ->
   TestDefM outers (Path b Dir) ()
-testExample i example = do
-  it ("produces valid ESPHome YAML files for example" <> show i) $ \dir -> do
+testExample name example = do
+  it ("produces valid ESPHome YAML files for example: " <> name) $ \dir -> do
     let fp = dir </> [relfile|example.yaml|]
     writeFileBS (toFilePath fp) $ generateYAML example
     code <- runProcess $ fromString $ "esphome config " <> toFilePath fp
