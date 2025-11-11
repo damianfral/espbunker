@@ -24,10 +24,9 @@ import Control.Monad.Indexed (IxFunctor (imap), ireturn, (>>>=))
 import Control.Monad.Indexed.Free (IxFree (..), iliftFree)
 import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
-import Data.Aeson.KeyMap (KeyMap)
+import Data.Aeson.KeyMap (KeyMap, insert, insertWith)
 import qualified Data.Aeson.KeyMap as KM
 import Data.Default
-import qualified Data.Text as T
 import Data.Type.Bool (Not)
 import qualified Data.Vector as V
 import qualified Data.Yaml as YAML
@@ -95,7 +94,7 @@ newtype CoverOptions = CoverOptions
   }
 
 -- | Light https://esphome.io/components/light/
-data Light (name :: Symbol) = Light
+data Light (name :: Symbol) (platform :: Platform) = Light
 
 data LightOptions = LightOptions
   { lightTransitionLength :: Maybe Int, -- Mapped to 'transition_length' in ms
@@ -107,10 +106,17 @@ instance Default LightOptions where
 
 data LightRGBOptions where
   LightRGBOptions ::
-    forall red green blue.
+    forall red green blue platform.
     (KnownSymbol red, KnownSymbol green, KnownSymbol blue) =>
-    {red :: Output red, green :: Output green, blue :: Output blue} ->
+    { red :: Output red platform,
+      green :: Output green platform,
+      blue :: Output blue platform
+    } ->
     LightRGBOptions
+
+data LightOutputOptions where
+  LightOutputOptions ::
+    forall name. (KnownSymbol name) => Output name GPIO -> LightOutputOptions
 
 -- | Number https://esphome.io/components/number/
 data NumberComponent (name :: Symbol) = NumberComponent
@@ -126,7 +132,7 @@ instance Default NumberOptions where
   def = NumberOptions Nothing Nothing Nothing Nothing
 
 -- | Output https://esphome.io/components/output/
-data Output (name :: Symbol) = Output
+data Output (name :: Symbol) (platform :: Platform) = Output
 
 -- | Script https://esphome.io/components/script/
 data Script (name :: Symbol) = Script
@@ -155,11 +161,7 @@ instance Default SensorOptions where
   def = SensorOptions "" Nothing Nothing
 
 -- | Switch https://esphome.io/components/switch/
-data
-  Switch -- (platform :: Platform )
-    (name :: Symbol)
-    (pin :: Nat)
-  = Switch
+data Switch (name :: Symbol) (platform :: Platform) (pin :: Nat) = Switch
 
 --------------------------------------------------------------------------------
 
@@ -174,36 +176,38 @@ data ESPActionF f g next where
   SampleSensor :: (KnownSymbol name) => Sensor name -> next -> ESPActionF f g next
   SampleTextSensor :: (KnownSymbol name) => Sensor name -> next -> ESPActionF f g next
   SetNumber :: (KnownSymbol name) => NumberComponent name -> Double -> next -> ESPActionF f g next
-  SetOutputValue :: (KnownSymbol name) => Output name -> Double -> next -> ESPActionF f g next
+  SetOutputValue :: (KnownSymbol name) => Output name platform -> Double -> next -> ESPActionF f g next
   StopCover :: (KnownSymbol name) => Cover name -> next -> ESPActionF f g next
   ToggleBinaryOutput :: (KnownSymbol name) => BinaryOutput name pin -> next -> ESPActionF f g next
-  TurnOffLight :: (KnownSymbol name) => Light name -> next -> ESPActionF f g next
-  TurnOffOutput :: (KnownSymbol name) => Output name -> next -> ESPActionF f g next
-  TurnOffSwitch :: (KnownSymbol name) => Switch name pin -> next -> ESPActionF f g next
-  TurnOnLight :: (KnownSymbol name) => Light name -> next -> ESPActionF f g next
-  TurnOnOutput :: (KnownSymbol name) => Output name -> next -> ESPActionF f g next
-  TurnOnSwitch :: (KnownSymbol name) => Switch name pin -> next -> ESPActionF f g next
+  ToggleSwitch :: (KnownSymbol name) => Switch name platform pin -> next -> ESPActionF f g next
+  TurnOffLight :: (KnownSymbol name) => Light name platform -> next -> ESPActionF f g next
+  TurnOffOutput :: (KnownSymbol name) => Output name platform -> next -> ESPActionF f g next
+  TurnOffSwitch :: (KnownSymbol name) => Switch name platform pin -> next -> ESPActionF f g next
+  TurnOnLight :: (KnownSymbol name) => Light name platform -> next -> ESPActionF f g next
+  TurnOnOutput :: (KnownSymbol name) => Output name platform -> next -> ESPActionF f g next
+  TurnOnSwitch :: (KnownSymbol name) => Switch name platform pin -> next -> ESPActionF f g next
 
 instance IxFunctor ESPActionF where
-  imap f (TurnOnSwitch s next) = TurnOnSwitch s $ f next
-  imap f (TurnOffSwitch s next) = TurnOffSwitch s $ f next
-  imap f (TurnOnLight l next) = TurnOnLight l $ f next
-  imap f (TurnOffLight l next) = TurnOffLight l $ f next
-  imap f (RunScript sc next) = RunScript sc $ f next
-  imap f (LogMsg msg next) = LogMsg msg $ f next
-  imap f (Delay ms next) = Delay ms $ f next
-  imap f (SetNumber n v next) = SetNumber n v (f next)
-  imap f (IncrementNumber n v next) = IncrementNumber n v (f next)
-  imap f (DecrementNumber n v next) = DecrementNumber n v (f next)
-  imap f (SetOutputValue n v next) = SetOutputValue n v (f next)
-  imap f (TurnOnOutput n next) = TurnOnOutput n (f next)
-  imap f (TurnOffOutput n next) = TurnOffOutput n (f next)
-  imap f (ToggleBinaryOutput n next) = ToggleBinaryOutput n (f next)
-  imap f (OpenCover n next) = OpenCover n (f next)
   imap f (CloseCover n next) = CloseCover n (f next)
-  imap f (StopCover n next) = StopCover n (f next)
+  imap f (DecrementNumber n v next) = DecrementNumber n v (f next)
+  imap f (Delay ms next) = Delay ms $ f next
+  imap f (IncrementNumber n v next) = IncrementNumber n v (f next)
+  imap f (LogMsg msg next) = LogMsg msg $ f next
+  imap f (OpenCover n next) = OpenCover n (f next)
+  imap f (RunScript sc next) = RunScript sc $ f next
   imap f (SampleSensor n next) = SampleSensor n (f next)
   imap f (SampleTextSensor n next) = SampleTextSensor n (f next)
+  imap f (SetNumber n v next) = SetNumber n v (f next)
+  imap f (SetOutputValue n v next) = SetOutputValue n v (f next)
+  imap f (StopCover n next) = StopCover n (f next)
+  imap f (ToggleBinaryOutput n next) = ToggleBinaryOutput n (f next)
+  imap f (ToggleSwitch n next) = ToggleSwitch n (f next)
+  imap f (TurnOffLight l next) = TurnOffLight l $ f next
+  imap f (TurnOffOutput n next) = TurnOffOutput n (f next)
+  imap f (TurnOffSwitch s next) = TurnOffSwitch s $ f next
+  imap f (TurnOnLight l next) = TurnOnLight l $ f next
+  imap f (TurnOnOutput n next) = TurnOnOutput n (f next)
+  imap f (TurnOnSwitch s next) = TurnOnSwitch s $ f next
 
 newtype IxIdentity i j a = IxIdentity a
 
@@ -214,16 +218,16 @@ type ESPAction = IxFree ESPActionF () () ()
 
 --------------------------------------------------------------------------------
 
-turnOn :: (KnownSymbol name) => Switch name pin -> ESPAction
+turnOn :: (KnownSymbol name) => Switch name platform pin -> ESPAction
 turnOn s = iliftFree $ TurnOnSwitch s ()
 
-turnOff :: (KnownSymbol name) => Switch name pin -> ESPAction
+turnOff :: (KnownSymbol name) => Switch name platform pin -> ESPAction
 turnOff s = iliftFree $ TurnOffSwitch s ()
 
-turnOnL :: (KnownSymbol name) => Light name -> ESPAction
+turnOnL :: (KnownSymbol name) => Light name platform -> ESPAction
 turnOnL l = iliftFree $ TurnOnLight l ()
 
-turnOffL :: (KnownSymbol name) => Light name -> ESPAction
+turnOffL :: (KnownSymbol name) => Light name platform -> ESPAction
 turnOffL l = iliftFree $ TurnOffLight l ()
 
 runScript :: (KnownSymbol name) => Script name -> ESPAction
@@ -276,6 +280,7 @@ type family PlatformToOptions (component :: k) (platform :: Platform) :: Type wh
   PlatformToOptions BinarySensor GPIO = BinarySensorGPIOOptions
   PlatformToOptions Switch GPIO = BinarySensorGPIOOptions
   PlatformToOptions Light RGB = LightRGBOptions
+  PlatformToOptions Light Out = LightOutputOptions
 
 --------------------------------------------------------------------------------
 
@@ -299,8 +304,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    next ->
-    ESPF board newBoard next
+    next -> ESPF board newBoard next
   MkBinarySensor ::
     forall
       name
@@ -314,6 +318,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       platformSymbol
       board
       boardName
+      newBoard
       next.
     ( KnownSymbol name,
       KnownNat pin,
@@ -326,17 +331,21 @@ data ESPF :: Type -> Type -> Type -> Type where
       platformSymbol ~ PlatformToSymbol platform,
       KnownSymbol platformSymbol,
       KnownSymbol boardName,
-      board ~ Board boardName names freePins
+      board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames newFreePins
     ) =>
-    BinarySensorOptions ->
-    options ->
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
-      next
+    BinarySensorOptions -> options -> next -> ESPF board newBoard next
   MkLight ::
-    forall name platform names freePins newNames options platformSymbol boardName next.
+    forall
+      name
+      platform
+      names
+      freePins
+      newNames
+      options
+      platformSymbol
+      boardName
+      next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names,
@@ -354,69 +363,58 @@ data ESPF :: Type -> Type -> Type -> Type where
       (Board boardName newNames freePins)
       next
   MkScript ::
-    forall name names freePins newNames boardName next.
-    ( KnownSymbol name,
+    forall name names freePins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    ESPAction ->
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
-      next
+    ESPAction -> next -> ESPF board newBoard next
   MkSwitch ::
-    forall name pin names freePins newNames newFreePins boardName next.
-    ( KnownSymbol name,
+    forall name platform pin names freePins newNames newFreePins boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
       KnownNat pin,
+      AssertNameIsNotUsed name names,
       AssertPinIsAvailable pin freePins,
-      AssertNameIsNotUsed name names,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins
+      newFreePins ~ Remove pin freePins,
+      KnownSymbol (PlatformToSymbol platform)
     ) =>
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
-      next
+    next -> ESPF board newBoard next
   MkSensor ::
-    forall name names freePins newNames boardName next.
-    ( KnownSymbol name,
+    forall name names freePins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    SensorOptions ->
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
-      next
+    SensorOptions -> next -> ESPF board newBoard next
   MkTextSensor ::
-    forall name names freePins newNames boardName next.
-    ( KnownSymbol name,
+    forall name names freePins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
-      next
+    next -> ESPF board newBoard next
   MkNumber ::
-    forall name names freePins newNames boardName next.
-    ( KnownSymbol name,
+    forall name names freePins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names
     ) =>
-    NumberOptions ->
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
-      next
+    NumberOptions -> next -> ESPF board newBoard next
   MkOutput ::
-    forall name pin names freePins newNames newFreePins boardName next.
+    forall name platform pin names freePins newNames newFreePins boardName next.
     ( KnownSymbol name,
+      KnownSymbol (PlatformToSymbol platform),
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
       AssertNameIsNotUsed name names,
@@ -480,10 +478,10 @@ instance IxFunctor ESPF where
   imap f (MkLight @name @platform options platformOptions next) =
     MkLight @name @platform options platformOptions (f next)
   imap f (MkNumber @name options next) = MkNumber @name options (f next)
-  imap f (MkOutput @name @pin next) = MkOutput @name @pin (f next)
+  imap f (MkOutput @name @platform @pin next) = MkOutput @name @platform @pin (f next)
   imap f (MkScript @name options next) = MkScript @name options (f next)
   imap f (MkSensor @name options next) = MkSensor @name options (f next)
-  imap f (MkSwitch @name @pin next) = MkSwitch @name @pin (f next)
+  imap f (MkSwitch @name @platform @pin next) = MkSwitch @name @platform @pin (f next)
   imap f (MkTextSensor @name next) = MkTextSensor @name (f next)
 
 --------------------------------------------------------------------------------
@@ -498,7 +496,8 @@ type ESP32C3 =
 
 board ::
   forall board names pins boardName.
-  (board ~ Board boardName names pins) => ESPM board board (Board boardName names pins)
+  (board ~ Board boardName names pins) =>
+  ESPM board board (Board boardName names pins)
 board = iliftFree $ MkBoard @board Board
 
 esphome ::
@@ -510,23 +509,22 @@ esphome ::
     newNames ~ Insert name names
   ) =>
   ESPM board newBoard (ESPHome name)
-esphome = iliftFree $ MkESPHome @name @names @freePins @newNames ESPHome
+esphome = iliftFree $ MkESPHome @name ESPHome
 
 switch ::
-  forall name pin names freePins newNames newFreePins boardName.
-  ( KnownSymbol name,
+  forall name platform pin names freePins newNames newFreePins boardName board newBoard.
+  ( board ~ Board boardName names freePins,
+    newBoard ~ Board boardName newNames freePins,
+    KnownSymbol name,
     KnownNat pin,
     AssertNameIsNotUsed name names,
     AssertPinIsAvailable pin freePins,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins
+    newFreePins ~ Remove pin freePins,
+    KnownSymbol (PlatformToSymbol platform)
   ) =>
-  ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames newFreePins)
-    (Switch name pin)
-switch =
-  iliftFree $ MkSwitch @name @pin @names @freePins @newNames @newFreePins Switch
+  ESPM board newBoard (Switch name platform pin)
+switch = iliftFree $ MkSwitch @name @platform @pin $ Switch
 
 binarySensor ::
   forall name platform pin names freePins newNames newFreePins options boardName.
@@ -549,27 +547,18 @@ binarySensor ::
     (BinarySensor name platform pin)
 binarySensor options platformOptions =
   iliftFree
-    $ MkBinarySensor
-      @name
-      @platform
-      @pin
-      @names
-      @freePins
-      @newNames
-      @newFreePins
-      options
-      platformOptions
-      BinarySensor
+    $ MkBinarySensor @name @platform @pin options platformOptions BinarySensor
 
 script ::
-  forall name names freePins newNames boardName.
-  ( KnownSymbol name,
+  forall name names freePins newNames boardName board newBoard.
+  ( board ~ Board boardName names freePins,
+    newBoard ~ Board boardName newNames freePins,
+    KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names
   ) =>
-  ESPAction ->
-  ESPM (Board boardName names freePins) (Board boardName newNames freePins) (Script name)
-script actions = iliftFree $ MkScript @name @names @freePins actions Script
+  ESPAction -> ESPM board newBoard (Script name)
+script actions = iliftFree $ MkScript @name actions Script
 
 light ::
   forall name platform names freePins newNames options platformSymbol boardName.
@@ -586,48 +575,36 @@ light ::
   ESPM
     (Board boardName names freePins)
     (Board boardName newNames freePins)
-    (Light name)
+    (Light name platform)
 light options platformOptions =
-  iliftFree
-    $ MkLight
-      @name
-      @platform
-      @names
-      @freePins
-      @newNames
-      options
-      platformOptions
-      Light
+  iliftFree $ MkLight @name @platform options platformOptions Light
 
 sensor ::
-  forall name names freePins newNames boardName.
-  ( KnownSymbol name,
+  forall name names freePins newNames boardName board newBoard.
+  ( board ~ Board boardName names freePins,
+    newBoard ~ Board boardName newNames freePins,
+    KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names
   ) =>
-  SensorOptions ->
-  IxFree
-    ESPF
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
-    (Sensor name)
+  SensorOptions -> ESPM board newBoard (Sensor name)
 sensor opts = iliftFree (MkSensor @name opts Sensor)
 
 output ::
-  forall name pin names freePins newNames newFreePins boardName.
+  forall name platform pin names freePins newNames newFreePins boardName.
   ( KnownSymbol name,
     KnownNat pin,
     AssertPinIsAvailable pin freePins,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins
+    newFreePins ~ Remove pin freePins,
+    KnownSymbol (PlatformToSymbol platform)
   ) =>
-  IxFree
-    ESPF
+  ESPM
     (Board boardName names freePins)
     (Board boardName newNames newFreePins)
-    (Output name)
-output = iliftFree (MkOutput @name @pin Output)
+    (Output name platform)
+output = iliftFree (MkOutput @name @platform @pin Output)
 
 cover ::
   forall name platform names freePins newNames newFreePins boardName.
@@ -636,12 +613,15 @@ cover ::
     newNames ~ Insert name names,
     KnownSymbol (PlatformToSymbol platform)
   ) =>
-  IxFree ESPF (Board boardName names freePins) (Board boardName newNames newFreePins) (Cover name)
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames newFreePins)
+    (Cover name)
 cover = iliftFree (MkCover @name @platform Cover)
 
 --------------------------------------------------------------------------------
 
-(>>=) :: IxFree ESPF i j a -> (a -> IxFree ESPF j k b) -> IxFree ESPF i k b
+(>>=) :: ESPM i j a -> (a -> ESPM j k b) -> ESPM i k b
 (>>=) = (>>>=) -- the indexed bind from IxFree
 
 --------------------------------------------------------------------------------
@@ -657,285 +637,292 @@ done = ireturn ()
 interpretAction :: IxFree ESPActionF i j () -> Array
 interpretAction (Pure _) = empty
 interpretAction (Free espf) = case espf of
+  ToggleSwitch @name _switch next ->
+    let n = symbolVal (Proxy @name)
+        option = Object $ KM.singleton "switch.toggle" $ toJSON n
+     in [option] <> interpretAction next
   TurnOnSwitch @name _switch next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "switch.turn_on" $ String (T.pack n)
+        option = Object $ KM.singleton "switch.turn_on" $ toJSON n
      in [option] <> interpretAction next
   TurnOffSwitch @name _switch next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "switch.turn_off" $ String (T.pack n)
+        option = Object $ KM.singleton "switch.turn_off" $ toJSON n
      in [option] <> interpretAction next
   TurnOnLight @name _light next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "light.turn_on" $ String (T.pack n)
+        option = Object $ KM.singleton "light.turn_on" $ toJSON n
      in [option] <> interpretAction next
   TurnOffLight @name _light next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "light.turn_off" $ String (T.pack n)
+        option = Object $ KM.singleton "light.turn_off" $ toJSON n
      in [option] <> interpretAction next
   LogMsg msg next ->
-    let option = Object $ KM.singleton "logger.log" $ String msg
+    let option = Object $ KM.singleton "logger.log" $ toJSON msg
      in [option] <> interpretAction next
   Delay ms next ->
-    let option = Object $ KM.singleton "delay" $ String (show ms <> "ms")
+    let option = Object $ KM.singleton "delay" $ String $ show ms <> "ms"
      in [option] <> interpretAction next
   RunScript @name _script next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "script.execute" $ String (T.pack n)
+        option = Object $ KM.singleton "script.execute" $ toJSON n
      in [option] <> interpretAction next
   SetNumber @name _number val next ->
     let n = symbolVal (Proxy @name)
         yamlNode =
           Object
             $ KM.singleton "number.set"
-            $ object [("id", String (T.pack n)), ("value", String (show val))]
+            $ object [("id", toJSON n), ("value", toJSON val)]
      in [yamlNode] <> interpretAction next
   IncrementNumber @name _number _val next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "number.increment" $ String (T.pack n)
+        option = Object $ KM.singleton "number.increment" $ toJSON n
      in [option] <> interpretAction next
   DecrementNumber @name _number _val next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "number.decrement" $ String (T.pack n)
+        option = Object $ KM.singleton "number.decrement" $ toJSON n
      in [option] <> interpretAction next
   SetOutputValue @name _output val next ->
     let n = symbolVal (Proxy @name)
         yamlNode =
           Object
             $ KM.singleton "output.set_level"
-            $ object
-              [ ("id", String (T.pack n)),
-                ("level", String (T.pack (show val)))
-              ]
+            $ object [("id", toJSON n), ("level", toJSON val)]
      in [yamlNode] <> interpretAction next
   TurnOnOutput @name _output next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "output.turn_on" $ String (T.pack n)
+        option = Object $ KM.singleton "output.turn_on" $ toJSON n
      in [option] <> interpretAction next
   TurnOffOutput @name _output next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "output.turn_off" $ String (T.pack n)
+        option = Object $ KM.singleton "output.turn_off" $ toJSON n
      in [option] <> interpretAction next
   ToggleBinaryOutput @name _output next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "switch.toggle" $ String (T.pack n)
+        option = Object $ KM.singleton "switch.toggle" $ toJSON n
      in [option] <> interpretAction next
   OpenCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "cover.open" $ String (T.pack n)
+        option = Object $ KM.singleton "cover.open" $ toJSON n
      in [option] <> interpretAction next
   CloseCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "cover.close" $ String (T.pack n)
+        option = Object $ KM.singleton "cover.close" $ toJSON n
      in [option] <> interpretAction next
   StopCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "cover.stop" $ String (T.pack n)
+        option = Object $ KM.singleton "cover.stop" $ toJSON n
      in [option] <> interpretAction next
   SampleSensor @name _sensor next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "component.update" $ String (T.pack n)
+        option = Object $ KM.singleton "component.update" $ toJSON n
      in [option] <> interpretAction next
   SampleTextSensor @name _sensor next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ KM.singleton "component.update" $ String (T.pack n)
+        option = Object $ KM.singleton "component.update" $ toJSON n
      in [option] <> interpretAction next
 
 --------------------------------------------------------------------------------
 
--- * Main interpreter
+data Node = SingleNode Key (KeyMap Value) | Node Key [KeyMap Value]
+
+nodesToKeyMap :: [Node] -> KeyMap Value
+nodesToKeyMap = foldl' merge mempty
+  where
+    merge :: KeyMap Value -> Node -> KeyMap Value
+    merge acc (SingleNode name value) = insert name (Object value) acc
+    merge acc (Node name values) = insertWith deepMerge name newArray acc
+      where
+        newArray = toJSON $ Object <$> values
+
+deepMerge :: Value -> Value -> Value
+deepMerge (Object km1) (Object km2) = Object $ KM.unionWith deepMerge km1 km2
+deepMerge (Array v1) (Array v2) = Array $ v1 <> v2
+deepMerge _ v2 = v2
 
 interpretESP ::
   forall board board' boardName boardNames boardPins.
   (board ~ Board boardName boardNames boardPins, KnownSymbol boardName) =>
-  ESPM board board' () -> [Object]
+  ESPM board board' () -> [Node]
 interpretESP (Pure _) = []
 interpretESP (Free espf) =
   case espf of
     MkESPHome @name next ->
       let n = symbolVal (Proxy @name)
-          espHomeNode = [("esphome", object [("name", toJSON n)])]
+          espHomeNode = SingleNode "esphome" [("name", toJSON n)]
        in espHomeNode : interpretESP next
     MkBoard next ->
       let boardName = symbolVal (Proxy @boardName)
           yamlNode =
-            [ ( "esp32",
-                object
-                  [ ("board", toJSON boardName),
-                    ( "framework",
-                      object
-                        [ ("type", "arduino"),
-                          ("version", "latest")
-                        ]
-                    )
-                  ]
-              )
-            ]
+            SingleNode
+              "esp32"
+              [ ("board", toJSON boardName),
+                ( "framework",
+                  object [("type", "arduino"), ("version", "latest")]
+                )
+              ]
        in yamlNode : interpretESP next
-    MkSwitch @name @pin next ->
+    MkSwitch @name @platform @pin next ->
       let n = symbolVal (Proxy @name)
+          platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlNode =
-            [ ( "switch",
-                object
-                  [ ("platform", String "gpio"),
-                    ("pin", toJSON $ pinToText @pin),
-                    ("name", toJSON n),
-                    ("id", toJSON $ snakeCase n)
-                  ]
-              )
-            ]
+            Node
+              "switch"
+              [ [ ("platform", toJSON platform),
+                  ("pin", toJSON $ pinToText @pin),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n)
+                ]
+              ]
        in yamlNode : interpretESP next
     MkCover @name next ->
       let n = symbolVal (Proxy @name)
           coverNode =
-            [ ( "cover",
-                object
-                  [ ("platform", String "template"),
-                    ("name", toJSON (T.pack n)),
-                    ("id", toJSON $ snakeCase n)
-                  ]
-              )
-            ]
+            Node
+              "cover"
+              [ [ ("platform", "template"),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n)
+                ]
+              ]
        in coverNode : interpretESP next
     MkButton @name @pin next ->
       let n = symbolVal (Proxy @name)
           buttonNode =
-            [ ( "button",
-                object
-                  [ ("platform", String "template"),
-                    ("name", toJSON n),
-                    ("id", toJSON $ snakeCase n)
-                  ]
-              )
-            ]
+            Node "button"
+              $ fromList
+              $ pure
+                [ ("platform", "template"),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n)
+                ]
+
           binarySensorNode =
-            [ ( "binary_sensor",
-                object
-                  [ ("platform", String "gpio"),
-                    ("pin", String $ pinToText @pin),
-                    ("name", toJSON n),
-                    ("id", toJSON $ snakeCase n),
-                    ( "on_press",
-                      Array $ V.fromList [object [("button.press", toJSON n)]]
-                    )
-                  ]
-              )
-            ]
+            Node "binary_sensor"
+              $ fromList
+              $ pure
+                [ ("platform", "gpio"),
+                  ("pin", toJSON $ pinToText @pin),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n),
+                  ( "on_press",
+                    Array $ V.fromList [object [("button.press", toJSON n)]]
+                  )
+                ]
        in buttonNode : binarySensorNode : interpretESP next
-    MkOutput @name @pin next ->
+    MkOutput @name @platform @pin next ->
       let n = symbolVal (Proxy @name)
+          platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlNode =
-            [ ( "output",
-                object
-                  [ ("platform", String "gpio"),
-                    -- ("name", toJSON n),
-                    ("id", toJSON $ snakeCase n),
-                    ("pin", toJSON $ pinToText @pin)
-                  ]
-              )
-            ]
+            Node "output"
+              $ fromList
+              $ pure
+                [ ("platform", toJSON platform),
+                  ("id", toJSON $ snakeCase n),
+                  ("pin", toJSON $ pinToText @pin)
+                ]
        in yamlNode : interpretESP next
     MkBinaryOutput @name @pin next ->
       let n = symbolVal (Proxy @name)
           yamlNode =
-            [ ( "switch",
-                object
-                  [ ("platform", String "gpio"),
-                    ("name", toJSON (T.pack n)),
-                    ("id", toJSON $ snakeCase n),
-                    ("pin", toJSON $ pinToText @pin)
-                  ]
-              )
-            ]
+            Node "switch"
+              $ fromList
+              $ pure
+                [ ("platform", "gpio"),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n),
+                  ("pin", toJSON $ pinToText @pin)
+                ]
        in yamlNode : interpretESP next
     MkNumber @name options next ->
       let n = symbolVal (Proxy @name)
-          opts =
-            [ ("platform", String "template"),
-              ("name", toJSON (T.pack n)),
-              ("id", toJSON $ snakeCase n)
-            ]
-              <> catMaybes
-                [ ("min_value",) . String . T.pack . show <$> numberMin options,
-                  ("max_value",) . String . T.pack . show <$> numberMax options,
-                  ("step",) . String . T.pack . show <$> numberStep options,
-                  ("unit_of_measurement",) . String <$> numberUnit options
+          opts :: KeyMap Value =
+            fromList
+              $ [ ("platform", "template"),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n)
                 ]
-          yamlNode = [("number", object opts)]
+              <> catMaybes
+                [ ("min_value",) . toJSON <$> numberMin options,
+                  ("max_value",) . toJSON <$> numberMax options,
+                  ("step",) . toJSON <$> numberStep options,
+                  ("unit_of_measurement",) . toJSON <$> numberUnit options
+                ]
+          yamlNode = Node "number" [opts]
        in yamlNode : interpretESP next
     MkSensor @name options next ->
       let n = symbolVal (Proxy @name)
           opts =
-            [ ("platform", String "template"),
-              ("name", toJSON (T.pack n)),
-              ("id", toJSON $ snakeCase n),
-              ("unit_of_measurement", String (sensorUnit options))
+            [ fromList
+                $ [ ("platform", "template"),
+                    ("name", toJSON n),
+                    ("id", toJSON $ snakeCase n),
+                    ("unit_of_measurement", toJSON $ sensorUnit options)
+                  ]
+                <> catMaybes
+                  [ do
+                      accuracy <- sensorAccuracy options
+                      Just ("accuracy_decimals", toJSON accuracy),
+                    do
+                      interval <- sensorIntervalMs options
+                      Just ("update_interval", String $ show interval <> "ms")
+                  ]
             ]
-              <> catMaybes
-                [ do
-                    accuracy <- sensorAccuracy options
-                    Just ("accuracy_decimals", String $ show accuracy),
-                  do
-                    interval <- sensorIntervalMs options
-                    Just ("update_interval", String $ show interval <> "ms")
-                ]
-          yamlNode = [("sensor", object opts)]
+          yamlNode = Node "sensor" opts
        in yamlNode : interpretESP next
     MkTextSensor @name next ->
       let n = symbolVal (Proxy @name)
           yamlNode =
-            [ ( "text_sensor",
-                object
-                  [ ("platform", String "template"),
-                    ("name", toJSON (T.pack n)),
-                    ("id", toJSON $ snakeCase n)
-                  ]
-              )
-            ]
+            Node
+              "text_sensor"
+              [ [ ("platform", "template"),
+                  ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n)
+                ]
+              ]
        in yamlNode : interpretESP next
     MkBinarySensor @name @platform @pin options platformOptions next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlPlatformNode = toKeyMap platformOptions
           yamlNode =
-            KM.singleton "binary_sensor"
-              $ Object
-              $ KM.fromList
-                [ ("platform", String $ toText platform),
-                  ("pin", toJSON $ pinToText @pin),
-                  ("name", toJSON (T.pack n)),
-                  ("id", toJSON $ snakeCase n),
-                  ("on_press", Array $ interpretAction $ onPress options)
-                ]
-              <> yamlPlatformNode
+            Node
+              "binary_sensor"
+              [ fromList
+                  [ ("platform", toJSON platform),
+                    ("pin", toJSON $ pinToText @pin),
+                    ("name", toJSON n),
+                    ("id", toJSON $ snakeCase n),
+                    ("on_press", Array $ interpretAction $ onPress options)
+                  ]
+                  <> yamlPlatformNode
+              ]
        in [yamlNode] <> interpretESP next
     MkLight @name @platform _options platformOptions next ->
       let n = symbolVal $ Proxy @name
           platform = symbolVal $ Proxy @(PlatformToSymbol platform)
           yamlPlatformNode = toKeyMap platformOptions
           yamlNode =
-            [ ( "light",
-                Object
-                  $ KM.fromList
-                    [ ("platform", String $ toText platform),
-                      ("name", toJSON (T.pack n)),
-                      ("id", toJSON $ snakeCase n)
-                    ]
+            Node
+              "light"
+              [ fromList
+                  [ ("platform", toJSON platform),
+                    ("name", toJSON n),
+                    ("id", toJSON $ snakeCase n)
+                  ]
                   <> yamlPlatformNode
-              )
-            ]
+              ]
        in [yamlNode] <> interpretESP next
     MkScript @name action next ->
-      let n = symbolVal (Proxy @name)
+      let n = symbolVal $ Proxy @name
           yamlNode =
-            [ ( "script",
-                object
-                  [ ("name", toJSON (T.pack n)),
-                    ("id", toJSON $ snakeCase n),
-                    ("then", Array $ interpretAction action)
-                  ]
-              )
-            ]
+            Node
+              "script"
+              [ [ ("name", toJSON n),
+                  ("id", toJSON $ snakeCase n),
+                  ("then", Array $ interpretAction action)
+                ]
+              ]
        in yamlNode : interpretESP next
 
 --------------------------------------------------------------------------------
@@ -944,8 +931,7 @@ generateYAML ::
   (KnownSymbol boardName) =>
   ESPM (Board boardName boardNames boardPins) board' () -> ByteString
 generateYAML prog =
-  let nodes = interpretESP prog
-   in fold $ intersperse "\n\n" $ YAML.encode <$> nodes
+  let nodes = interpretESP prog in YAML.encode $ nodesToKeyMap nodes
 
 class KeyMapOptions a where toKeyMap :: a -> KeyMap Value
 
@@ -975,6 +961,12 @@ instance KeyMapOptions LightRGBOptions where
         ("blue", toJSON $ symbolVal $ Proxy @blue)
       ]
 
+instance KeyMapOptions LightOutputOptions where
+  toKeyMap (LightOutputOptions @name _) =
+    KM.fromList
+      [ ("output", toJSON $ symbolVal $ Proxy @name)
+      ]
+
 instance KeyMapOptions LightOptions where
   toKeyMap LightOptions {..} =
     KM.fromList
@@ -983,20 +975,16 @@ instance KeyMapOptions LightOptions where
           mapEffectsOption "effects" lightEffects
         ]
     where
-      -- Helper to include an optional Int field as a String value (e.g., "100ms")
       mapIntOption :: Text -> Maybe Int -> Maybe (Key, Value)
       mapIntOption key val = do
         transitionL <- val
         Just (fromString $ toString key, String $ show transitionL <> "ms")
 
-      -- Helper to include a list of effects only if the list is not empty
       mapEffectsOption :: Text -> [Text] -> Maybe (Key, Value)
       mapEffectsOption key effects = do
         guard $ not $ null effects
         let k' = fromString $ toString key
-        Just (k', Array $ V.fromList $ String <$> effects)
+        Just (k', Array $ V.fromList $ toJSON <$> effects)
 
 pinToText :: forall pin. (KnownNat pin) => Text
-pinToText =
-  let p = natVal (Proxy @pin)
-   in "GPIO" <> show p
+pinToText = let p = natVal (Proxy @pin) in "GPIO" <> show p

@@ -16,12 +16,13 @@ ghc-options:
   - -Wunused-packages
 
 dependencies:
-  - base
   - aeson
   - aeson-casing
+  - base
+  - containers
   - data-default
-  - indexed-free
   - indexed
+  - indexed-free
   - optparse-applicative
   - optparse-generic
   - relude
