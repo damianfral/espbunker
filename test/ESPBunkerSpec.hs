@@ -21,6 +21,8 @@ spec = setupSpec $ do
   describe "ESPBunker" $ do
     testExample 1 example1
     testExample 2 example2
+    testExample 3 example3
+    testExample 4 example4
 
 testExample ::
   (KnownSymbol boardName) =>
