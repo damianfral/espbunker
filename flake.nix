@@ -16,72 +16,68 @@
     };
   };
 
-  outputs =
-    { self
-    , nixpkgs
-    , flake-utils
-    , feedback
-    , nix-filter
-    , pre-commit-hooks
-    , ...
-    } @ inputs:
-    let
-      pkgsFor = system:
-        import nixpkgs {
-          inherit system;
-          overlays = [ self.overlays.default ];
-        };
-    in
+  outputs = {
+    self,
+    nixpkgs,
+    flake-utils,
+    feedback,
+    nix-filter,
+    pre-commit-hooks,
+    ...
+  } @ inputs: let
+    pkgsFor = system:
+      import nixpkgs {
+        inherit system;
+        overlays = [self.overlays.default];
+      };
+  in
     {
-      overlays.default = final: prev:
-        let
-          filteredSrc = nix-filter.lib {
-            root = ./.;
-            include = [
-              "src/"
-              "test/"
-              "package.yaml"
-              "LICENSE"
-            ];
-          };
-        in
-        rec {
-          espbunker = final.haskell.lib.justStaticExecutables haskellPackages.espbunker;
-          haskellPackages =
-            prev.haskellPackages.override
-              (old: {
-                overrides =
-                  final.lib.composeExtensions
-                    (old.overrides or (_: _: { }))
-                    (
-                      self: super: {
-                        espbunker =
-                          self.generateOptparseApplicativeCompletions
-                            [ "espbunker" ]
-                            (
-                              (self.callCabal2nix "espbunker" filteredSrc { }).overrideAttrs
-                                (
-                                  oldAttrs: {
-                                    nativeBuildInputs =
-                                      oldAttrs.nativeBuildInputs
-                                      ++ [ final.makeWrapper ];
-                                    postInstall =
-                                      (oldAttrs.postInstall or "")
-                                      + ''
-                                        wrapProgram $out/bin/espbunker \
-                                          --suffix PATH : ${final.lib.makeBinPath [final.esphome]}
-                                      '';
-                                  }
-                                )
-                            );
-                      }
-                    );
-              });
+      overlays.default = final: prev: let
+        filteredSrc = nix-filter.lib {
+          root = ./.;
+          include = [
+            "src/"
+            "test/"
+            "package.yaml"
+            "LICENSE"
+          ];
         };
+      in rec {
+        espbunker = final.haskell.lib.justStaticExecutables haskellPackages.espbunker;
+        haskellPackages =
+          prev.haskellPackages.override
+          (old: {
+            overrides =
+              final.lib.composeExtensions
+              (old.overrides or (_: _: {}))
+              (
+                self: super: {
+                  espbunker =
+                    # self.generateOptparseApplicativeCompletions
+                    #   [ "espbunker" ]
+                    (
+                      (self.callCabal2nix "espbunker" filteredSrc {}).overrideAttrs
+                      (
+                        oldAttrs: {
+                          nativeBuildInputs =
+                            oldAttrs.nativeBuildInputs
+                            ++ [final.makeWrapper final.esphome];
+                          # postInstall =
+                          #   (oldAttrs.postInstall or "")
+                          #   + ''
+                          #     wrapProgram $out/bin/espbunker \
+                          #       --suffix PATH : ${final.lib.makeBinPath [final.esphome]}
+                          #   '';
+                        }
+                      )
+                    );
+                }
+              );
+          });
+      };
     }
     // flake-utils.lib.eachDefaultSystem (
-      system:
-      let
+      system: let
         pkgs = pkgsFor system;
         precommitCheck = pre-commit-hooks.lib.${system}.run {
           src = ./.;
@@ -91,19 +87,18 @@
             hpack.enable = true;
             markdownlint.enable = true;
             nil.enable = true;
-            nixpkgs-fmt.enable = true;
+            alejandra.enable = true;
             ormolu.enable = true;
           };
         };
-      in
-      rec {
+      in rec {
         packages = {
           inherit (pkgs) espbunker;
           default = packages.espbunker;
         };
 
         apps = {
-          espbunker = flake-utils.lib.mkApp { drv = packages.espbunker; };
+          espbunker = flake-utils.lib.mkApp {drv = packages.espbunker;};
           default = apps.espbunker;
         };
 
@@ -111,26 +106,27 @@
           pre-commit-check = precommitCheck;
           weeder-check = inputs.weeder-nix.lib.${system}.makeWeederCheck {
             haskellPackages = pkgs.haskellPackages;
-            packages = [ "espbunker" ];
+            packages = ["espbunker"];
             reportOnly = true;
           };
         };
 
         devShells.default = pkgs.haskellPackages.shellFor {
-          packages = p: [ packages.espbunker ];
+          packages = p: [packages.espbunker];
           buildInputs = with pkgs;
-            with pkgs.haskellPackages; [
-              actionlint
-              cabal-install
-              ghcid
-              haskell-language-server
-              feedback.packages.${system}.default
-              hlint
-              nil
-              nixpkgs-fmt
-              ormolu
-              statix
-            ];
+          with pkgs.haskellPackages; [
+            actionlint
+            cabal-install
+            esphome
+            ghcid
+            haskell-language-server
+            feedback.packages.${system}.default
+            hlint
+            nil
+            nixpkgs-fmt
+            ormolu
+            statix
+          ];
           inherit (precommitCheck) shellHook;
         };
       }
