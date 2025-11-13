@@ -49,6 +49,7 @@ data Platform
   | CWWW
   | Endstop
   | ADC
+  | Template
 
 data RestoreMode
   = RESTORE_DEFAULT_OFF
@@ -70,12 +71,30 @@ type family PlatformToSymbol (platform :: Platform) :: Symbol where
   PlatformToSymbol CWWW = "cwww"
   PlatformToSymbol Endstop = "endstop"
   PlatformToSymbol ADC = "adc"
+  PlatformToSymbol Template = "template"
 
 --------------------------------------------------------------------------------
 
 -- * Components
 
-data ESPHome (name :: Symbol) = ESPHome
+data ESPHome = ESPHome
+
+newtype ESPHomeOptions = ESPHomeOptions
+  { espHomeOnBoot :: Maybe OnBootAction
+  }
+  deriving (Generic)
+
+data OnBootAction = OnBootAction
+  { onBootPriority :: Maybe Int,
+    onBootAction :: ESPAction -- The single action to run on boot (can be a sequence)
+  }
+  deriving (Generic)
+
+instance Default ESPHomeOptions where
+  def = ESPHomeOptions Nothing
+
+instance Default OnBootAction where
+  def = OnBootAction Nothing (ireturn ())
 
 --------------------------------------------------------------------------------
 
@@ -83,17 +102,67 @@ data ESPHome (name :: Symbol) = ESPHome
 data BinarySensor (name :: Symbol) (platform :: Platform) (pin :: Nat)
   = BinarySensor
 
+data PinModeType
+  = INPUT
+  | OUTPUT
+  | OPEN_DRAIN
+  | PULLUP
+  | PULLDOWN
+  deriving (Show, Generic)
+
+instance ToJSON PinModeType where
+  toJSON INPUT = String "input"
+  toJSON OUTPUT = String "output"
+  toJSON OPEN_DRAIN = String "open_drain"
+  toJSON PULLUP = String "pullup"
+  toJSON PULLDOWN = String "pulldown"
+
+data PinMode = PinMode
+  { pinModeInput :: Bool,
+    pinModeOutput :: Bool,
+    pinModeOpenDrain :: Bool,
+    pinModePullUp :: Bool,
+    pinModePullDown :: Bool
+  }
+  deriving (Generic)
+
+instance ToJSON PinMode where
+  toJSON (PinMode input outp openDrain pullUp pullDown) =
+    object
+      [ "input" .= input,
+        "output" .= outp,
+        "open_drain" .= openDrain,
+        "pullup" .= pullUp,
+        "pulldown" .= pullDown
+      ]
+
 data BinarySensorOptions = BinarySensorOptions
   { onPress :: ESPAction,
     onRelease :: ESPAction,
     onClick :: ESPAction,
     onDoubleClick :: ESPAction,
-    onLongPress :: ESPAction
+    onLongPress :: ESPAction,
+    binarySensorDeviceClass :: Maybe DeviceClass,
+    binarySensorIcon :: Maybe Text,
+    binarySensorEntityCategory :: Maybe Text,
+    binarySensorInternal :: Maybe Bool,
+    binarySensorPinMode :: Maybe PinMode -- For GPIO binary sensors
   }
   deriving (Generic)
 
 instance Default BinarySensorOptions where
-  def = BinarySensorOptions noAction noAction noAction noAction noAction
+  def =
+    BinarySensorOptions
+      noAction
+      noAction
+      noAction
+      noAction
+      noAction
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
 
 noAction :: IxFree ESPActionF i i ()
 noAction = ireturn ()
@@ -103,12 +172,392 @@ noAction = ireturn ()
 -- | Cover https://esphome.io/components/cover/
 data Cover (name :: Symbol) (platform :: Platform) = Cover
 
-newtype DeviceClass = DeviceClass
-  { deviceClass :: Text -- TODO: Add sum type
-  }
-  deriving newtype (ToJSON, IsString)
+data DeviceClass
+  = DeviceClassBattery
+  | DeviceClassConnectivity
+  | DeviceClassDoor
+  | DeviceClassGarageDoor
+  | DeviceClassGas
+  | DeviceClassHeat
+  | DeviceClassLight
+  | DeviceClassLock
+  | DeviceClassMoisture
+  | DeviceClassMotion
+  | DeviceClassMoving
+  | DeviceClassOccupancy
+  | DeviceClassOpening
+  | DeviceClassPlug
+  | DeviceClassPower
+  | DeviceClassPresence
+  | DeviceClassProblem
+  | DeviceClassSafety
+  | DeviceClassSmoke
+  | DeviceClassSound
+  | DeviceClassVibration
+  | DeviceClassWindow
+  | DeviceClassWindowCovering
+  | DeviceClassTemperature
+  | DeviceClassHumidity
+  | DeviceClassPressure
+  | DeviceClassCurrent
+  | DeviceClassEnergy
+  | DeviceClassPowerFactor
+  | DeviceClassFrequency
+  | DeviceClassVoltage
+  | DeviceClassSignalStrength
+  | DeviceClassDataRate
+  | DeviceClassDataSize
+  | DeviceClassDistance
+  | DeviceClassDuration
+  | DeviceClassIlluminance
+  | DeviceClassAccelG
+  | DeviceClassAccelMs2
+  | DeviceClassAltitude
+  | DeviceClassArea
+  | DeviceClassAqi
+  | DeviceClassApparentPower
+  | DeviceClassAtmosphericPressure
+  | DeviceClassBaby
+  | DeviceClassBaking
+  | DeviceClassBeauty
+  | DeviceClassBeverage
+  | DeviceClassBoiler
+  | DeviceClassBurglar
+  | DeviceClassButton
+  | DeviceClassCabinet
+  | DeviceClassCarbonDioxide
+  | DeviceClassCarbonMonoxide
+  | DeviceClassCharger
+  | DeviceClassCold
+  | DeviceClassCommunication
+  | DeviceClassConsumable
+  | DeviceClassCooking
+  | DeviceClassCounter
+  | DeviceClassCurrentStage
+  | DeviceClassDishwasher
+  | DeviceClassDoorbell
+  | DeviceClassDresser
+  | DeviceClassDryer
+  | DeviceClassEmergency
+  | DeviceClassEmergencyCall
+  | DeviceClassFan
+  | DeviceClassFault
+  | DeviceClassFilter
+  | DeviceClassFire
+  | DeviceClassFirmware
+  | DeviceClassFlag
+  | DeviceClassGarage
+  | DeviceClassGasoline
+  | DeviceClassGenerator
+  | DeviceClassHvac
+  | DeviceClassHazel
+  | DeviceClassHealth
+  | DeviceClassHeatCold
+  | DeviceClassHelper
+  | DeviceClassHolding
+  | DeviceClassHood
+  | DeviceClassHub
+  | DeviceClassInverter
+  | DeviceClassIrradiance
+  | DeviceClassKeypad
+  | DeviceClassLevel
+  | DeviceClassLifeSafety
+  | DeviceClassLighting
+  | DeviceClassLinen
+  | DeviceClassLockTight
+  | DeviceClassMains
+  | DeviceClassMedical
+  | DeviceClassMode
+  | DeviceClassMotionSensitivity
+  | DeviceClassMovingRate
+  | DeviceClassMower
+  | DeviceClassMusic
+  | DeviceClassNetwork
+  | DeviceClassNight
+  | DeviceClassNutrition
+  | DeviceClassOil
+  | DeviceClassOnline
+  | DeviceClassOpeningLevel
+  | DeviceClassOutlet
+  | DeviceClassOxygen
+  | DeviceClassPm1
+  | DeviceClassPm10
+  | DeviceClassPm25
+  | DeviceClassParking
+  | DeviceClassPeak
+  | DeviceClassPerfume
+  | DeviceClassPestControl
+  | DeviceClassPh
+  | DeviceClassPolice
+  | DeviceClassPowerOutage
+  | DeviceClassPowerSupply
+  | DeviceClassPregnancy
+  | DeviceClassPropane
+  | DeviceClassRadiation
+  | DeviceClassRadiator
+  | DeviceClassRain
+  | DeviceClassRefrigerator
+  | DeviceClassRemainder
+  | DeviceClassRemote
+  | DeviceClassRfid
+  | DeviceClassSour
+  | DeviceClassSalt
+  | DeviceClassShampoo
+  | DeviceClassShelfLife
+  | DeviceClassShopping
+  | DeviceClassShort
+  | DeviceClassShower
+  | DeviceClassSiren
+  | DeviceClassSmokeAlarm
+  | DeviceClassSoap
+  | DeviceClassSoda
+  | DeviceClassSolar
+  | DeviceClassShutter
+  | DeviceClassSoundPressure
+  | DeviceClassSpill
+  | DeviceClassStale
+  | DeviceClassState
+  | DeviceClassStatus
+  | DeviceClassSulphurDioxide
+  | DeviceClassSystem
+  | DeviceClassTare
+  | DeviceClassTechnical
+  | DeviceClassTamper
+  | DeviceClassTargetTemperature
+  | DeviceClassTask
+  | DeviceClassTarget
+  | DeviceClassTemperatureAmbient
+  | DeviceClassThermalZone
+  | DeviceClassTime
+  | DeviceClassTimer
+  | DeviceClassTobacco
+  | DeviceClassToner
+  | DeviceClassTorque
+  | DeviceClassTransit
+  | DeviceClassTreble
+  | DeviceClassTuner
+  | DeviceClassTv
+  | DeviceClassUltraviolet
+  | DeviceClassUnitless
+  | DeviceClassUnlock
+  | DeviceClassUpdate
+  | DeviceClassUser
+  | DeviceClassUtility
+  | DeviceClassVolatileOrganicCompounds
+  | DeviceClassVolatileOrganicCompoundsParts
+  | DeviceClassVolume
+  | DeviceClassVolumeFlowRate
+  | DeviceClassWater
+  | DeviceClassWeight
+  | DeviceClassWifi
+  | DeviceClassWine
+  | DeviceClassWinter
+  | DeviceClassWok
+  | DeviceClassWork
+  | DeviceClassWasher
+  | DeviceClassXyCoordinate
+  | DeviceClassYeast
+  | DeviceClassOther Text
+  deriving (Show, Eq, Generic)
 
-instance Default DeviceClass where def = ""
+instance ToJSON DeviceClass where
+  toJSON DeviceClassBattery = String "battery"
+  toJSON DeviceClassConnectivity = String "connectivity"
+  toJSON DeviceClassDoor = String "door"
+  toJSON DeviceClassGarageDoor = String "garage_door"
+  toJSON DeviceClassGas = String "gas"
+  toJSON DeviceClassHeat = String "heat"
+  toJSON DeviceClassLight = String "light"
+  toJSON DeviceClassLock = String "lock"
+  toJSON DeviceClassMoisture = String "moisture"
+  toJSON DeviceClassMotion = String "motion"
+  toJSON DeviceClassMoving = String "moving"
+  toJSON DeviceClassOccupancy = String "occupancy"
+  toJSON DeviceClassOpening = String "opening"
+  toJSON DeviceClassPlug = String "plug"
+  toJSON DeviceClassPower = String "power"
+  toJSON DeviceClassPresence = String "presence"
+  toJSON DeviceClassProblem = String "problem"
+  toJSON DeviceClassSafety = String "safety"
+  toJSON DeviceClassSmoke = String "smoke"
+  toJSON DeviceClassSound = String "sound"
+  toJSON DeviceClassVibration = String "vibration"
+  toJSON DeviceClassWindow = String "window"
+  toJSON DeviceClassWindowCovering = String "window_covering"
+  toJSON DeviceClassTemperature = String "temperature"
+  toJSON DeviceClassHumidity = String "humidity"
+  toJSON DeviceClassPressure = String "pressure"
+  toJSON DeviceClassCurrent = String "current"
+  toJSON DeviceClassEnergy = String "energy"
+  toJSON DeviceClassPowerFactor = String "power_factor"
+  toJSON DeviceClassFrequency = String "frequency"
+  toJSON DeviceClassVoltage = String "voltage"
+  toJSON DeviceClassSignalStrength = String "signal_strength"
+  toJSON DeviceClassDataRate = String "data_rate"
+  toJSON DeviceClassDataSize = String "data_size"
+  toJSON DeviceClassDistance = String "distance"
+  toJSON DeviceClassDuration = String "duration"
+  toJSON DeviceClassIlluminance = String "illuminance"
+  toJSON DeviceClassAccelG = String "accel_g"
+  toJSON DeviceClassAccelMs2 = String "accel_ms2"
+  toJSON DeviceClassAltitude = String "altitude"
+  toJSON DeviceClassArea = String "area"
+  toJSON DeviceClassAqi = String "aqi"
+  toJSON DeviceClassApparentPower = String "apparent_power"
+  toJSON DeviceClassAtmosphericPressure = String "atmospheric_pressure"
+  toJSON DeviceClassBaby = String "baby"
+  toJSON DeviceClassBaking = String "baking"
+  toJSON DeviceClassBeauty = String "beauty"
+  toJSON DeviceClassBeverage = String "beverage"
+  toJSON DeviceClassBoiler = String "boiler"
+  toJSON DeviceClassBurglar = String "burglar"
+  toJSON DeviceClassButton = String "button"
+  toJSON DeviceClassCabinet = String "cabinet"
+  toJSON DeviceClassCarbonDioxide = String "carbon_dioxide"
+  toJSON DeviceClassCarbonMonoxide = String "carbon_monoxide"
+  toJSON DeviceClassCharger = String "charger"
+  toJSON DeviceClassCold = String "cold"
+  toJSON DeviceClassCommunication = String "communication"
+  toJSON DeviceClassConsumable = String "consumable"
+  toJSON DeviceClassCooking = String "cooking"
+  toJSON DeviceClassCounter = String "counter"
+  toJSON DeviceClassCurrentStage = String "current_stage"
+  toJSON DeviceClassDishwasher = String "dishwasher"
+  toJSON DeviceClassDoorbell = String "doorbell"
+  toJSON DeviceClassDresser = String "dresser"
+  toJSON DeviceClassDryer = String "dryer"
+  toJSON DeviceClassEmergency = String "emergency"
+  toJSON DeviceClassEmergencyCall = String "emergency_call"
+  toJSON DeviceClassFan = String "fan"
+  toJSON DeviceClassFault = String "fault"
+  toJSON DeviceClassFilter = String "filter"
+  toJSON DeviceClassFire = String "fire"
+  toJSON DeviceClassFirmware = String "firmware"
+  toJSON DeviceClassFlag = String "flag"
+  toJSON DeviceClassGarage = String "garage"
+  toJSON DeviceClassGasoline = String "gasoline"
+  toJSON DeviceClassGenerator = String "generator"
+  toJSON DeviceClassHvac = String "hvac"
+  toJSON DeviceClassHazel = String "hazel"
+  toJSON DeviceClassHealth = String "health"
+  toJSON DeviceClassHeatCold = String "heat_cold"
+  toJSON DeviceClassHelper = String "helper"
+  toJSON DeviceClassHolding = String "holding"
+  toJSON DeviceClassHood = String "hood"
+  toJSON DeviceClassHub = String "hub"
+  toJSON DeviceClassInverter = String "inverter"
+  toJSON DeviceClassIrradiance = String "irradiance"
+  toJSON DeviceClassKeypad = String "keypad"
+  toJSON DeviceClassLevel = String "level"
+  toJSON DeviceClassLifeSafety = String "life_safety"
+  toJSON DeviceClassLighting = String "lighting"
+  toJSON DeviceClassLinen = String "linen"
+  toJSON DeviceClassLockTight = String "lock_tight"
+  toJSON DeviceClassMains = String "mains"
+  toJSON DeviceClassMedical = String "medical"
+  toJSON DeviceClassMode = String "mode"
+  toJSON DeviceClassMotionSensitivity = String "motion_sensitivity"
+  toJSON DeviceClassMovingRate = String "moving_rate"
+  toJSON DeviceClassMower = String "mower"
+  toJSON DeviceClassMusic = String "music"
+  toJSON DeviceClassNetwork = String "network"
+  toJSON DeviceClassNight = String "night"
+  toJSON DeviceClassNutrition = String "nutrition"
+  toJSON DeviceClassOil = String "oil"
+  toJSON DeviceClassOnline = String "online"
+  toJSON DeviceClassOpeningLevel = String "opening_level"
+  toJSON DeviceClassOutlet = String "outlet"
+  toJSON DeviceClassOxygen = String "oxygen"
+  toJSON DeviceClassPm1 = String "pm1"
+  toJSON DeviceClassPm10 = String "pm10"
+  toJSON DeviceClassPm25 = String "pm25"
+  toJSON DeviceClassParking = String "parking"
+  toJSON DeviceClassPeak = String "peak"
+  toJSON DeviceClassPerfume = String "perfume"
+  toJSON DeviceClassPestControl = String "pest_control"
+  toJSON DeviceClassPh = String "ph"
+  toJSON DeviceClassPolice = String "police"
+  toJSON DeviceClassPowerOutage = String "power_outage"
+  toJSON DeviceClassPowerSupply = String "power_supply"
+  toJSON DeviceClassPregnancy = String "pregnancy"
+  toJSON DeviceClassPropane = String "propane"
+  toJSON DeviceClassRadiation = String "radiation"
+  toJSON DeviceClassRadiator = String "radiator"
+  toJSON DeviceClassRain = String "rain"
+  toJSON DeviceClassRefrigerator = String "refrigerator"
+  toJSON DeviceClassRemainder = String "remainder"
+  toJSON DeviceClassRemote = String "remote"
+  toJSON DeviceClassRfid = String "rfid"
+  toJSON DeviceClassSour = String "sour"
+  toJSON DeviceClassSalt = String "salt"
+  toJSON DeviceClassShampoo = String "shampoo"
+  toJSON DeviceClassShelfLife = String "shelf_life"
+  toJSON DeviceClassShopping = String "shopping"
+  toJSON DeviceClassShort = String "short"
+  toJSON DeviceClassShower = String "shower"
+  toJSON DeviceClassSiren = String "siren"
+  toJSON DeviceClassSmokeAlarm = String "smoke_alarm"
+  toJSON DeviceClassSoap = String "soap"
+  toJSON DeviceClassSoda = String "soda"
+  toJSON DeviceClassSolar = String "solar"
+  toJSON DeviceClassShutter = String "shutter"
+  toJSON DeviceClassSoundPressure = String "sound_pressure"
+  toJSON DeviceClassSpill = String "spill"
+  toJSON DeviceClassStale = String "stale"
+  toJSON DeviceClassState = String "state"
+  toJSON DeviceClassStatus = String "status"
+  toJSON DeviceClassSulphurDioxide = String "sulphur_dioxide"
+  toJSON DeviceClassSystem = String "system"
+  toJSON DeviceClassTare = String "tare"
+  toJSON DeviceClassTechnical = String "technical"
+  toJSON DeviceClassTamper = String "tamper"
+  toJSON DeviceClassTargetTemperature = String "target_temperature"
+  toJSON DeviceClassTask = String "task"
+  toJSON DeviceClassTarget = String "target"
+  toJSON DeviceClassTemperatureAmbient = String "temperature_ambient"
+  toJSON DeviceClassThermalZone = String "thermal_zone"
+  toJSON DeviceClassTime = String "time"
+  toJSON DeviceClassTimer = String "timer"
+  toJSON DeviceClassTobacco = String "tobacco"
+  toJSON DeviceClassToner = String "toner"
+  toJSON DeviceClassTorque = String "torque"
+  toJSON DeviceClassTransit = String "transit"
+  toJSON DeviceClassTreble = String "treble"
+  toJSON DeviceClassTuner = String "tuner"
+  toJSON DeviceClassTv = String "tv"
+  toJSON DeviceClassUltraviolet = String "ultraviolet"
+  toJSON DeviceClassUnitless = String "unitless"
+  toJSON DeviceClassUnlock = String "unlock"
+  toJSON DeviceClassUpdate = String "update"
+  toJSON DeviceClassUser = String "user"
+  toJSON DeviceClassUtility = String "utility"
+  toJSON DeviceClassVolatileOrganicCompounds = String "volatile_organic_compounds"
+  toJSON DeviceClassVolatileOrganicCompoundsParts = String "volatile_organic_compounds_parts"
+  toJSON DeviceClassVolume = String "volume"
+  toJSON DeviceClassVolumeFlowRate = String "volume_flow_rate"
+  toJSON DeviceClassWater = String "water"
+  toJSON DeviceClassWeight = String "weight"
+  toJSON DeviceClassWifi = String "wifi"
+  toJSON DeviceClassWine = String "wine"
+  toJSON DeviceClassWinter = String "winter"
+  toJSON DeviceClassWok = String "wok"
+  toJSON DeviceClassWork = String "work"
+  toJSON DeviceClassWasher = String "washer"
+  toJSON DeviceClassXyCoordinate = String "xy_coordinate"
+  toJSON DeviceClassYeast = String "yeast"
+  toJSON (DeviceClassOther text) = toJSON text
+
+data CoverOptions = CoverOptions
+  { coverDeviceClass :: Maybe DeviceClass,
+    coverIcon :: Maybe Text,
+    coverEntityCategory :: Maybe Text,
+    coverInternal :: Maybe Bool,
+    coverAssumedState :: Maybe Bool,
+    coverOptimistic :: Maybe Bool
+  }
+
+instance Default CoverOptions where
+  def = CoverOptions Nothing Nothing Nothing Nothing Nothing Nothing
 
 data CoverEndstopOptions where
   CoverEndstopOptions ::
@@ -127,13 +576,48 @@ data CoverEndstopOptions where
 -- | Light https://esphome.io/components/light/
 data Light (name :: Symbol) (platform :: Platform) = Light
 
+data ColorMode
+  = COLOR_MODE_UNKNOWN
+  | COLOR_MODE_ON_OFF
+  | COLOR_MODE_BRIGHTNESS
+  | COLOR_MODE_WHITE
+  | COLOR_MODE_COLOR_TEMPERATURE
+  | COLOR_MODE_COLD_WARM_WHITE
+  | COLOR_MODE_RGB
+  | COLOR_MODE_RGB_WHITE
+  | COLOR_MODE_RGB_COLOR_TEMPERATURE
+  | COLOR_MODE_RGB_COLD_WARM_WHITE
+  deriving (Show, Generic)
+
+instance ToJSON ColorMode where
+  toJSON = toJSON @Text . show
+
 data LightOptions = LightOptions
   { lightTransitionLength :: Maybe Int, -- Mapped to 'transition_length' in ms
-    lightEffects :: [Text] -- Mapped to 'effects'
+    lightEffects :: [Text], -- Mapped to 'effects'
+    lightColorMode :: Maybe ColorMode,
+    lightGammaCorrect :: Maybe Double,
+    lightDefaultTransitionLength :: Maybe Int,
+    lightDeviceClass :: Maybe DeviceClass,
+    lightIcon :: Maybe Text,
+    lightEntityCategory :: Maybe Text,
+    lightInternal :: Maybe Bool,
+    lightRestoreMode :: Maybe RestoreMode -- Reusing existing RestoreMode
   }
 
 instance Default LightOptions where
-  def = LightOptions Nothing []
+  def =
+    LightOptions
+      Nothing
+      []
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
 
 data LightRGBOptions where
   LightRGBOptions ::
@@ -174,11 +658,28 @@ data NumberOptions = NumberOptions
   { numberMin :: Maybe Double,
     numberMax :: Maybe Double,
     numberStep :: Maybe Double,
-    numberUnit :: Maybe Text
+    numberUnit :: Maybe Text,
+    numberDeviceClass :: Maybe DeviceClass,
+    numberIcon :: Maybe Text,
+    numberEntityCategory :: Maybe Text,
+    numberInternal :: Maybe Bool,
+    numberMode :: Maybe Text, -- "auto", "box", "slider"
+    numberOptimistic :: Maybe Bool -- For template numbers
   }
 
 instance Default NumberOptions where
-  def = NumberOptions Nothing Nothing Nothing Nothing
+  def =
+    NumberOptions
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
 
 -- | Output https://esphome.io/components/output/
 data Output (name :: Symbol) (platform :: Platform) = Output
@@ -203,23 +704,46 @@ data Select (name :: Symbol) = Select
 
 data SelectOptions = SelectOptions
   { selectOptions :: [Text],
-    selectInitial :: Maybe Text
+    selectInitial :: Maybe Text,
+    selectDeviceClass :: Maybe DeviceClass,
+    selectIcon :: Maybe Text,
+    selectEntityCategory :: Maybe Text,
+    selectInternal :: Maybe Bool,
+    selectMode :: Maybe Text -- "auto", "box", "dropdown"
   }
 
 instance Default SelectOptions where
-  def = SelectOptions [] Nothing
+  def = SelectOptions [] Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Sensor https://esphome.io/components/sensor/
 data Sensor (name :: Symbol) = Sensor
 
+data StateClass
+  = STATE_CLASS_MEASUREMENT
+  | STATE_CLASS_TOTAL_INCREASING
+  | STATE_CLASS_TOTAL
+  | STATE_CLASS_NONE
+  deriving (Show, Generic)
+
+instance ToJSON StateClass where
+  toJSON STATE_CLASS_MEASUREMENT = String "measurement"
+  toJSON STATE_CLASS_TOTAL_INCREASING = String "total_increasing"
+  toJSON STATE_CLASS_TOTAL = String "total"
+  toJSON STATE_CLASS_NONE = String "none"
+
 data SensorOptions = SensorOptions
   { sensorUnit :: Text,
     sensorAccuracy :: Maybe Int,
-    sensorIntervalMs :: Maybe Int
+    sensorIntervalMs :: Maybe Int,
+    sensorStateClass :: Maybe StateClass,
+    sensorDeviceClass :: Maybe DeviceClass, -- Reusing existing DeviceClass
+    sensorIcon :: Maybe Text,
+    sensorEntityCategory :: Maybe Text, -- "config", "diagnostic", "system"
+    sensorInternal :: Maybe Bool
   }
 
 instance Default SensorOptions where
-  def = SensorOptions "" Nothing Nothing
+  def = SensorOptions "" Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 data Attenuation
   = ATTEN_0DB
@@ -240,15 +764,74 @@ newtype SensorADCOptions = SensorADCOptions {attenuation :: Maybe Attenuation}
 data Switch (name :: Symbol) (platform :: Platform) (pin :: Nat) = Switch
 
 data SwitchOptions = SwitchOptions
-  { restoreMode :: Maybe RestoreMode,
+  { switchRestoreMode :: Maybe RestoreMode, -- Renaming to avoid conflicts
     onTurnOn :: ESPAction,
-    onTurnOff :: ESPAction
+    onTurnOff :: ESPAction,
+    switchDeviceClass :: Maybe DeviceClass,
+    switchIcon :: Maybe Text,
+    switchEntityCategory :: Maybe Text,
+    switchInternal :: Maybe Bool,
+    switchOptimistic :: Maybe Bool,
+    switchInterlock :: [Text],
+    switchInterlockWaitTime :: Maybe Int, -- In milliseconds
+    switchInverted :: Maybe Bool -- For GPIO switches
   }
 
 instance Default SwitchOptions where
-  def = SwitchOptions Nothing noAction noAction
+  def =
+    SwitchOptions
+      Nothing
+      noAction
+      noAction
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      Nothing
+      []
+      Nothing
+      Nothing
 
 data Logger = Logger
+
+-- | I2C Bus https://esphome.io/components/i2c/
+data I2C = I2C
+
+data I2COptions = I2COptions
+  { i2cSda :: Text, -- Pin for SDA
+    i2cScl :: Text, -- Pin for SCL
+    i2cScan :: Maybe Bool, -- Whether to scan for I2C devices
+    i2cFrequency :: Maybe Text -- I2C bus frequency (e.g. "50kHz")
+  }
+  deriving (Generic)
+
+instance Default I2COptions where
+  def = I2COptions "SDA" "SCL" (Just True) Nothing
+
+-- | PN532 NFC reader I2C component
+data PN532I2C = PN532I2C
+
+data PN532I2COptions = PN532I2COptions
+  { pn532I2CId :: Maybe Text, -- Component ID
+    pn532I2COnTag :: Maybe ESPAction -- Action to run when tag is detected
+  }
+  deriving (Generic)
+
+instance Default PN532I2COptions where
+  def = PN532I2COptions Nothing Nothing
+
+-- | Interval component https://esphome.io/components/interval/
+data Interval = Interval
+
+data IntervalOptions = IntervalOptions
+  { intervalId :: Maybe Text, -- Component ID (optional)
+    intervalInterval :: Maybe Text, -- Interval period with units (e.g. "10s")
+    intervalAction :: ESPAction -- Single action to run at the interval (can be a sequence)
+  }
+  deriving (Generic)
+
+instance Default IntervalOptions where
+  def = IntervalOptions Nothing Nothing (ireturn ())
 
 newtype Password = Password {unPassword :: Text}
   deriving newtype (IsString, ToJSON)
@@ -296,6 +879,25 @@ data ESPActionF f g next where
     (KnownSymbol name) =>
     NumberComponent name -> Double -> next -> ESPActionF f g next
   Delay :: Int -> next -> ESPActionF f g next
+  ComponentUpdate ::
+    Text -> next -> ESPActionF f g next -- Updates a component by ID
+  ComponentSuspend ::
+    Text -> next -> ESPActionF f g next -- Suspends a component by ID
+    -- If condition with switch.is_on condition
+  IfSwitchIsOn ::
+    (KnownSymbol name) =>
+    Switch name platform pin -> -- Switch to check
+    ESPAction -> -- Then action
+    Maybe ESPAction -> -- Else action (optional)
+    next ->
+    ESPActionF f g next
+  IfSwitchIsOff ::
+    (KnownSymbol name) =>
+    Switch name platform pin -> -- Switch to check
+    ESPAction -> -- Then action
+    Maybe ESPAction -> -- Else action (optional)
+    next ->
+    ESPActionF f g next
   IncrementNumber ::
     (KnownSymbol name) =>
     NumberComponent name -> Double -> next -> ESPActionF f g next
@@ -347,6 +949,10 @@ instance IxFunctor ESPActionF where
   imap f (CloseCover n next) = CloseCover n $ f next
   imap f (DecrementNumber n v next) = DecrementNumber n v $ f next
   imap f (Delay ms next) = Delay ms $ f next
+  imap f (ComponentUpdate cID next) = ComponentUpdate cID $ f next
+  imap f (ComponentSuspend cID next) = ComponentSuspend cID $ f next
+  imap f (IfSwitchIsOn sw thenAct elseAct next) = IfSwitchIsOn sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
+  imap f (IfSwitchIsOff sw thenAct elseAct next) = IfSwitchIsOff sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
   imap f (IncrementNumber n v next) = IncrementNumber n v $ f next
   imap f (LogMsg msg next) = LogMsg msg $ f next
   imap f (OpenCover n next) = OpenCover n $ f next
@@ -387,6 +993,18 @@ turnOffL l = iliftFree $ TurnOffLight l ()
 
 runScript :: (KnownSymbol name) => Script name -> ESPAction
 runScript s = iliftFree $ RunScript s ()
+
+componentUpdate :: Text -> ESPAction
+componentUpdate cID = iliftFree $ ComponentUpdate cID ()
+
+componentSuspend :: Text -> ESPAction
+componentSuspend cID = iliftFree $ ComponentSuspend cID ()
+
+ifSwitchIsOn :: (KnownSymbol name) => Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
+ifSwitchIsOn sw thenAction elseAction = iliftFree $ IfSwitchIsOn sw thenAction elseAction ()
+
+ifSwitchIsOff :: (KnownSymbol name) => Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
+ifSwitchIsOff sw thenAction elseAction = iliftFree $ IfSwitchIsOff sw thenAction elseAction ()
 
 log :: Text -> ESPAction
 log t = iliftFree $ LogMsg t ()
@@ -432,8 +1050,8 @@ type family AssertPinIsAvailable (x :: k) (xs :: [k]) :: Constraint where
 --------------------------------------------------------------------------------
 
 type family PlatformToOptions (component :: k) (platform :: Platform) :: Type where
-  PlatformToOptions BinarySensor GPIO = DeviceClass
-  PlatformToOptions Switch GPIO = DeviceClass
+  PlatformToOptions BinarySensor GPIO = Maybe DeviceClass
+  PlatformToOptions Switch GPIO = Maybe DeviceClass
   PlatformToOptions Light RGB = LightRGBOptions
   PlatformToOptions Light Out = LightOutputOptions
   PlatformToOptions Light Monochromatic = LightMonochromaticOptions
@@ -441,6 +1059,7 @@ type family PlatformToOptions (component :: k) (platform :: Platform) :: Type wh
   PlatformToOptions Output GPIO = OutputGPIOOptions
   PlatformToOptions Output LEDC = OutputLEDCOptions
   PlatformToOptions Cover Endstop = CoverEndstopOptions
+  PlatformToOptions Cover Template = CoverOptions
   PlatformToOptions Sensor ADC = SensorADCOptions
 
 --------------------------------------------------------------------------------
@@ -458,14 +1077,9 @@ data ESPF :: Type -> Type -> Type -> Type where
     forall board names pins boardName next.
     (board ~ Board boardName names pins) => next -> ESPF board board next
   MkESPHome ::
-    forall name names freePins newNames newFreePins board boardName newBoard next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames newFreePins,
-      KnownSymbol name,
-      AssertNameIsNotUsed name names,
-      newNames ~ Insert name names
-    ) =>
-    next -> ESPF board newBoard next
+    forall name next board.
+    (KnownSymbol name) =>
+    ESPHomeOptions -> next -> ESPF board board next
   MkLogger :: next -> ESPF board board next
   MkBinarySensor ::
     forall
@@ -628,9 +1242,12 @@ data ESPF :: Type -> Type -> Type -> Type where
   MkAPI :: Password -> next -> ESPF board board next
   MkOTA :: [OTAOptions] -> next -> ESPF board board next
   MkWebServer :: WebServerOptions -> next -> ESPF board board next
+  MkI2C :: I2COptions -> next -> ESPF board board next
+  MkPN532I2C :: PN532I2COptions -> next -> ESPF board board next
+  MkInterval :: IntervalOptions -> next -> ESPF board board next
 
 instance IxFunctor ESPF where
-  imap f (MkESPHome @name next) = MkESPHome @name $ f next
+  imap f (MkESPHome @name options next) = MkESPHome @name options $ f next
   imap f (MkLogger next) = MkLogger $ f next
   imap f (MkBinarySensor @name @platform @pin options platformOptions next) =
     MkBinarySensor @name @platform @pin options platformOptions $ f next
@@ -653,6 +1270,9 @@ instance IxFunctor ESPF where
   imap f (MkOTA opts next) = MkOTA opts $ f next
   imap f (MkAPI opts next) = MkAPI opts $ f next
   imap f (MkWebServer opts next) = MkWebServer opts $ f next
+  imap f (MkI2C opts next) = MkI2C opts $ f next
+  imap f (MkPN532I2C opts next) = MkPN532I2C opts $ f next
+  imap f (MkInterval opts next) = MkInterval opts $ f next
 
 --------------------------------------------------------------------------------
 
@@ -670,16 +1290,8 @@ board ::
   ESPM board board (Board boardName names pins)
 board = iliftFree $ MkBoard @board Board
 
-esphome ::
-  forall name names freePins newNames board boardName newBoard.
-  ( board ~ Board boardName names freePins,
-    newBoard ~ Board boardName newNames freePins,
-    KnownSymbol name,
-    AssertNameIsNotUsed name names,
-    newNames ~ Insert name names
-  ) =>
-  ESPM board newBoard (ESPHome name)
-esphome = iliftFree $ MkESPHome @name ESPHome
+esphome :: forall name board. (KnownSymbol name) => ESPHomeOptions -> ESPM board board ()
+esphome options = iliftFree $ MkESPHome @name options ()
 
 logger :: ESPM board board ()
 logger = iliftFree $ MkLogger ()
@@ -805,6 +1417,22 @@ cover ::
     (Cover name platform)
 cover opts = iliftFree (MkCover @name @platform opts Cover)
 
+number ::
+  forall name names freePins newNames boardName.
+  ( KnownSymbol name,
+    AssertNameIsNotUsed name names,
+    newNames ~ Insert name names
+  ) =>
+  NumberOptions ->
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames freePins)
+    (NumberComponent name)
+number opts = iliftFree $ MkNumber @name opts NumberComponent
+
+interval :: IntervalOptions -> ESPM board board Interval
+interval opts = iliftFree $ MkInterval opts Interval
+
 wifi :: WifiOptions -> ESPM board board Wifi
 wifi opts = iliftFree $ MkWifi opts Wifi
 
@@ -815,6 +1443,11 @@ addNetwork ssid p opts =
 ap :: Text -> Password -> WifiOptions -> WifiOptions
 ap ssid p opts = opts {wifiAP = Just $ def {ssid = ssid, password = p}}
 
+-- | Helper to add a boot action to ESPHome options
+addBootAction :: Maybe Int -> ESPAction -> ESPHomeOptions -> ESPHomeOptions
+addBootAction mbPriority action opts =
+  opts {espHomeOnBoot = Just $ OnBootAction mbPriority action}
+
 api :: Password -> ESPM board board API
 api p = iliftFree $ MkAPI p API
 
@@ -823,6 +1456,12 @@ ota opts = iliftFree $ MkOTA opts OTA
 
 webServer :: Int -> ESPM board board WebServer
 webServer port = iliftFree $ MkWebServer (WebServerOptions port) WebServer
+
+i2c :: I2COptions -> ESPM board board I2C
+i2c opts = iliftFree $ MkI2C opts I2C
+
+pn532i2c :: PN532I2COptions -> ESPM board board PN532I2C
+pn532i2c opts = iliftFree $ MkPN532I2C opts PN532I2C
 
 --------------------------------------------------------------------------------
 
@@ -868,6 +1507,44 @@ interpretAction (Free espf) = case espf of
   Delay ms next ->
     let option = Object $ "delay" .= (show @Text ms <> "ms")
      in [option] <> interpretAction next
+  ComponentUpdate cID next ->
+    let option = Object $ "component.update" .= cID
+     in [option] <> interpretAction next
+  ComponentSuspend cID next ->
+    let option = Object $ "component.suspend" .= cID
+     in [option] <> interpretAction next
+  IfSwitchIsOn @name _switch thenAction elseAction next ->
+    let n = symbolVal (Proxy @name)
+        conditionPart = object ["switch.is_on" .= n]
+        thenPart = interpretAction thenAction
+        elseMaybe = case elseAction of
+          Nothing -> []
+          Just ea ->
+            ["else" .= interpretAction ea | not $ null (interpretAction ea)]
+        ifObject =
+          object
+            $ [ "condition" .= conditionPart,
+                "then" .= thenPart
+              ]
+            <> elseMaybe
+        ifAction = object ["if" .= ifObject]
+     in [ifAction] <> interpretAction next
+  IfSwitchIsOff @name _switch thenAction elseAction next ->
+    let n = symbolVal (Proxy @name)
+        conditionPart = object ["switch.is_off" .= n]
+        thenPart = interpretAction thenAction
+        elseMaybe = case elseAction of
+          Nothing -> []
+          Just ea ->
+            ["else" .= interpretAction ea | not $ null (interpretAction ea)]
+        ifObject =
+          object
+            $ [ "condition" .= conditionPart,
+                "then" .= thenPart
+              ]
+            ++ elseMaybe
+        ifAction = object ["if" .= ifObject]
+     in [ifAction] <> interpretAction next
   RunScript @name _script next ->
     let n = symbolVal (Proxy @name)
         option = Object $ "script.execute" .= snakeCase n
@@ -943,9 +1620,18 @@ interpretESP ::
 interpretESP (Pure _) = []
 interpretESP (Free espf) =
   case espf of
-    MkESPHome @name next ->
+    MkESPHome @name options next ->
       let n = symbolVal (Proxy @name)
-          espHomeNode = SingleNode "esphome" ["name" .= n]
+          basicOpts = ["name" .= n]
+          onBootPart =
+            case espHomeOnBoot options of
+              Nothing -> []
+              Just (OnBootAction mbPriority action) ->
+                let priorityField = maybe [] (\p -> ["priority" .= p]) mbPriority
+                    actionField = ["then" .= interpretAction action]
+                 in ["on_boot" .= object (fromList $ priorityField ++ actionField)]
+          espHomeOpts = basicOpts <> onBootPart
+          espHomeNode = SingleNode "esphome" espHomeOpts
        in espHomeNode : interpretESP next
     MkBoard next ->
       let boardName = symbolVal (Proxy @boardName)
@@ -970,7 +1656,18 @@ interpretESP (Free espf) =
                       "name" .= n,
                       "id" .= snakeCase n
                     ]
-                  <> catMaybes [("restore_mode",) . toJSON <$> restoreMode opts]
+                  <> catMaybes
+                    [ ("restore_mode",) . toJSON <$> switchRestoreMode opts,
+                      ("device_class",) . toJSON <$> switchDeviceClass opts,
+                      ("icon",) . toJSON <$> switchIcon opts,
+                      ("entity_category",) . toJSON <$> switchEntityCategory opts,
+                      ("internal",) . toJSON <$> switchInternal opts,
+                      ("optimistic",) . toJSON <$> switchOptimistic opts,
+                      ("interlock",) . toJSON <$> if null (switchInterlock opts) then Nothing else Just (switchInterlock opts),
+                      switchInterlockWaitTime opts <&> \wait ->
+                        ("interlock_wait_time", String $ show wait <> "ms"),
+                      switchInverted opts <&> \inv -> ("inverted", toJSON inv)
+                    ]
               ]
        in yamlNode : interpretESP next
     MkCover @name @platform opts next ->
@@ -1032,7 +1729,13 @@ interpretESP (Free espf) =
                 [ ("min_value",) . toJSON <$> numberMin options,
                   ("max_value",) . toJSON <$> numberMax options,
                   ("step",) . toJSON <$> numberStep options,
-                  ("unit_of_measurement",) . toJSON <$> numberUnit options
+                  ("unit_of_measurement",) . toJSON <$> numberUnit options,
+                  ("device_class",) . toJSON <$> numberDeviceClass options,
+                  ("icon",) . toJSON <$> numberIcon options,
+                  ("entity_category",) . toJSON <$> numberEntityCategory options,
+                  ("internal",) . toJSON <$> numberInternal options,
+                  ("mode",) . toJSON <$> numberMode options,
+                  ("optimistic",) . toJSON <$> numberOptimistic options
                 ]
           yamlNode = Node "number" [opts]
        in yamlNode : interpretESP next
@@ -1052,8 +1755,21 @@ interpretESP (Free espf) =
                           accuracy <- sensorAccuracy options
                           Just $ "accuracy_decimals" .= accuracy,
                         do
-                          interval <- sensorIntervalMs options
-                          Just $ "update_interval" .= (show @Text interval <> "ms")
+                          interv <- sensorIntervalMs options
+                          Just $ "update_interval" .= (show @Text interv <> "ms"),
+                        do
+                          stateClass <- sensorStateClass options
+                          Just $ "state_class" .= stateClass,
+                        do
+                          deviceClass <- sensorDeviceClass options
+                          Just $ "device_class" .= deviceClass,
+                        do
+                          icon <- sensorIcon options
+                          Just $ "icon" .= icon,
+                        do
+                          entityCategory <- sensorEntityCategory options
+                          Just $ "entity_category" .= entityCategory,
+                        sensorInternal options <&> \internal -> "internal" .= internal
                       ]
                   )
                 <> toKeyMap platformOptions
@@ -1070,18 +1786,38 @@ interpretESP (Free espf) =
     MkBinarySensor @name @platform @pin options platformOptions next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
-          yamlPlatformNode = toKeyMap platformOptions
-          yamlNode =
-            Node
-              "binary_sensor"
-              [ [ "platform" .= platform,
-                  "pin" .= pinToText @pin,
-                  "name" .= n,
-                  "id" .= snakeCase n,
-                  "on_press" .= interpretAction (onPress options)
-                ]
-                  <> yamlPlatformNode
-              ]
+          baseOpts =
+            [ "platform" .= platform,
+              "name" .= n,
+              "id" .= snakeCase n
+            ]
+          actionOpts =
+            case onPress options of
+              Pure () -> [] -- No actions
+              Free _ -> ["on_press" .= interpretAction (onPress options)]
+          pinModeOpts =
+            case binarySensorPinMode options of
+              Nothing -> ["pin" .= pinToText @pin] -- Just the pin number
+              Just mode ->
+                let pinObj =
+                      [ "number" .= pinToText @pin,
+                        "mode"
+                          .= object
+                            ( catMaybes
+                                [ if pinModeInput mode then Just ("input", toJSON True) else Nothing,
+                                  if pinModeOutput mode then Just ("output", toJSON True) else Nothing,
+                                  if pinModeOpenDrain mode then Just ("open_drain", toJSON True) else Nothing,
+                                  if pinModePullUp mode then Just ("pullup", toJSON True) else Nothing,
+                                  if pinModePullDown mode then Just ("pulldown", toJSON True) else Nothing
+                                ]
+                            )
+                      ]
+                 in ["pin" .= object (fromList pinObj)]
+          allOpts =
+            fold @[]
+              [baseOpts, actionOpts, pinModeOpts, toKeyMap platformOptions]
+
+          yamlNode = Node "binary_sensor" [allOpts]
        in [yamlNode] <> interpretESP next
     MkLight @name @platform _options platformOptions next ->
       let n = symbolVal $ Proxy @name
@@ -1130,6 +1866,38 @@ interpretESP (Free espf) =
     MkWebServer (WebServerOptions port) next ->
       let webServerNode = SingleNode "web_server" ["port" .= port]
        in webServerNode : interpretESP next
+    MkI2C options next ->
+      let i2cNode =
+            Node
+              "i2c"
+              [ fromList
+                  $ catMaybes
+                    [ Just $ "sda" .= i2cSda options,
+                      Just $ "scl" .= i2cScl options,
+                      i2cScan options <&> \scan -> "scan" .= scan,
+                      i2cFrequency options <&> \freq -> "frequency" .= freq
+                    ]
+              ]
+       in i2cNode : interpretESP next
+    MkPN532I2C options next ->
+      let allFields =
+            fromList
+              $ catMaybes
+                [ pn532I2CId options <&> \cid -> "id" .= cid,
+                  pn532I2COnTag options <&> \action -> "on_tag" .= interpretAction action
+                ]
+          yamlNode = Node "pn532_i2c" [allFields]
+       in yamlNode : interpretESP next
+    MkInterval options next ->
+      let intervalNode =
+            Node
+              "interval"
+              [ [ "id" .= fromMaybe "interval_component" (intervalId options),
+                  "interval" .= fromMaybe "10s" (intervalInterval options),
+                  "then" .= interpretAction (intervalAction options)
+                ]
+              ]
+       in intervalNode : interpretESP next
 
 --------------------------------------------------------------------------------
 
@@ -1152,10 +1920,17 @@ instance KeyMapOptions BinarySensorOptions where
       mapAction "on_double_click" onDoubleClick,
       mapAction "on_multi_click" onLongPress
     ]
+      <> fromList (catMaybes extraOptions)
     where
       mapAction :: Text -> ESPAction -> (Key, Value)
       mapAction key action =
         (fromString $ toString key, Array $ interpretAction action)
+      extraOptions =
+        [ binarySensorDeviceClass <&> \dc -> "device_class" .= dc,
+          binarySensorIcon <&> \icon -> "icon" .= icon,
+          binarySensorEntityCategory <&> \cat -> "entity_category" .= cat,
+          binarySensorInternal <&> \internal -> "internal" .= internal
+        ]
 
 instance KeyMapOptions LightRGBOptions where
   toKeyMap (LightRGBOptions @red @green @blue _red _green _blue) =
@@ -1201,8 +1976,24 @@ instance KeyMapOptions CoverEndstopOptions where
         "close_duration" .= String (show closeDuration <> "s")
       ]
 
+instance KeyMapOptions CoverOptions where
+  toKeyMap CoverOptions {..} =
+    fromList
+      $ catMaybes
+        [ coverDeviceClass <&> \dc -> "device_class" .= dc,
+          coverIcon <&> \icon -> "icon" .= icon,
+          coverEntityCategory <&> \category -> "entity_category" .= category,
+          coverInternal <&> \internal -> "internal" .= internal,
+          coverAssumedState <&> \assumed -> "assumed_state" .= assumed,
+          coverOptimistic <&> \optimistic -> "optimistic" .= optimistic
+        ]
+
 instance KeyMapOptions OutputGPIOOptions where
   toKeyMap _ = mempty
+
+instance (KeyMapOptions a) => KeyMapOptions (Maybe a) where
+  toKeyMap Nothing = mempty
+  toKeyMap (Just opts) = toKeyMap opts
 
 instance KeyMapOptions OutputLEDCOptions where
   toKeyMap (OutputLEDCOptions frequency) =
@@ -1217,13 +2008,31 @@ instance KeyMapOptions LightOptions where
     KM.fromList
       $ catMaybes
         [ mapIntOption "transition_length" lightTransitionLength,
-          mapEffectsOption "effects" lightEffects
+          mapEffectsOption "effects" lightEffects,
+          mapColorMode "color_mode" lightColorMode,
+          mapDoubleOption "gamma_correct" lightGammaCorrect,
+          mapIntOption "default_transition_length" lightDefaultTransitionLength,
+          lightDeviceClass <&> \dc -> "device_class" .= dc,
+          lightIcon <&> \icon -> "icon" .= icon,
+          lightEntityCategory <&> \category -> "entity_category" .= category,
+          lightInternal <&> \internal -> "internal" .= internal,
+          lightRestoreMode <&> \restore -> "restore_mode" .= restore
         ]
     where
       mapIntOption :: Text -> Maybe Int -> Maybe (Key, Value)
       mapIntOption key val = do
         transitionL <- val
         Just (fromString $ toString key, String $ show transitionL <> "ms")
+
+      mapDoubleOption :: Text -> Maybe Double -> Maybe (Key, Value)
+      mapDoubleOption key val = do
+        doubleVal <- val
+        Just (fromString $ toString key, toJSON doubleVal)
+
+      mapColorMode :: Text -> Maybe ColorMode -> Maybe (Key, Value)
+      mapColorMode key mode = do
+        colorMode <- mode
+        Just (fromString $ toString key, toJSON colorMode)
 
       mapEffectsOption :: Text -> [Text] -> Maybe (Key, Value)
       mapEffectsOption key effects = do
