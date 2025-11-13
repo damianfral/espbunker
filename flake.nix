@@ -83,12 +83,13 @@
           src = ./.;
           hooks = {
             actionlint.enable = true;
+            alejandra.enable = true;
             hlint.enable = true;
             hpack.enable = true;
             markdownlint.enable = true;
             nil.enable = true;
-            alejandra.enable = true;
             ormolu.enable = true;
+            ripsecrets.enable = true;
           };
         };
       in rec {
@@ -116,14 +117,14 @@
           buildInputs = with pkgs;
           with pkgs.haskellPackages; [
             actionlint
+            alejandra
             cabal-install
             esphome
+            feedback.packages.${system}.default
             ghcid
             haskell-language-server
-            feedback.packages.${system}.default
             hlint
             nil
-            nixpkgs-fmt
             ormolu
             statix
           ];
