@@ -20,7 +20,7 @@ import Relude hiding ((>>=))
 
 -- | A common setup for all the examples.
 commonSetup :: _
-commonSetup f = do
+commonSetup = do
   _ <- board @ESP32C3
   _ <- esphome @"esphome-bunker"
   _ <- logger
@@ -29,12 +29,13 @@ commonSetup f = do
       $ def
       & addNetwork "my-ssid" "my-password"
       & ap "my-ap-ssid" "my-ap-password"
-  -- _ <- webServer 80
+  _ <- webServer 80
   _ <- ota [OTAOptions "esphome" "pass"]
-  f done
+  done
 
 binarySensorExample :: ESPM ESP32C3 _ ()
-binarySensorExample = commonSetup $ \_ -> do
+binarySensorExample = do
+  _ <- commonSetup
   let blinkScript = replicateM_ 4 $ do
         log "Blinking..."
         delay 1000
@@ -42,7 +43,8 @@ binarySensorExample = commonSetup $ \_ -> do
   done
 
 coverExample :: ESPM ESP32C3 _ ()
-coverExample = commonSetup $ \_ -> do
+coverExample = do
+  _ <- commonSetup
   openEndstopSensor <- binarySensor @"open_endstop" @GPIO @4 def def
   closeEndstopSensor <- binarySensor @"close_endstop" @GPIO @5 def def
   _ <-
@@ -59,7 +61,8 @@ coverExample = commonSetup $ \_ -> do
   done
 
 lightExample :: ESPM ESP32C3 _ ()
-lightExample = commonSetup $ \_ -> do
+lightExample = do
+  _ <- commonSetup
   -- Monochromatic light
   out1 <- output @"out1" @LEDC @2 def
   _ <- light @"mono_light" @Monochromatic def $ LightMonochromaticOptions out1
@@ -84,17 +87,20 @@ lightExample = commonSetup $ \_ -> do
   done
 
 outputExample :: ESPM ESP32C3 _ ()
-outputExample = commonSetup $ \_ -> do
+outputExample = do
+  _ <- commonSetup
   _ <- output @"ledc_with_freq" @LEDC @2 def {frequency = Just 25000}
   done
 
 sensorExample :: ESPM ESP32C3 _ ()
-sensorExample = commonSetup $ \_ -> do
+sensorExample = do
+  _ <- commonSetup
   _ <- sensor @"adc_sensor" @ADC @3 def (SensorADCOptions (Just ATTEN_11DB))
   done
 
 switchExample :: ESPM ESP32C3 _ ()
-switchExample = commonSetup $ \_ -> do
+switchExample = do
+  _ <- commonSetup
   _ <- switch @"switch_with_restore" @GPIO @0 def {restoreMode = Just ALWAYS_ON}
   done
 
@@ -108,6 +114,23 @@ data SomeESPM where
     ) =>
     ESPM board board' () -> SomeESPM
 
+scriptExample :: ESPM ESP32C3 _ ()
+scriptExample = do
+  _ <- commonSetup
+  logScript <- script @"script1" $ log "asd"
+  _ <- binarySensor @"btn1" @GPIO @1 def {onPress = runScript logScript} def
+  done
+
+switchlightOutputExample :: ESPM ESP32C3 _ ()
+switchlightOutputExample = do
+  _ <- commonSetup
+  out1 <- output @"out1" @LEDC @2 def -- TODO: check the platforms
+  l <- light @"light_out" @Monochromatic def $ LightMonochromaticOptions out1
+  _ <-
+    switch @"light_switch" @GPIO @18
+      def {onTurnOn = turnOnL l, onTurnOff = turnOffL l}
+  done
+
 examples :: [(Text, SomeESPM)]
 examples =
   [ ("binary sensor", SomeESPM binarySensorExample),
@@ -115,72 +138,7 @@ examples =
     ("light", SomeESPM lightExample),
     ("output", SomeESPM outputExample),
     ("sensor", SomeESPM sensorExample),
-    ("switch", SomeESPM switchExample)
+    ("switch", SomeESPM switchExample),
+    ("script", SomeESPM scriptExample),
+    ("switchlightOutputExample", SomeESPM switchlightOutputExample)
   ]
-
--- binaryOutputExample :: ESPM ESP32C3 _ ()
--- binaryOutputExample = commonSetup $ \_ -> do
---   _ <- binaryOutput @"b_out" @8
---   done
-
--- buttonExample :: ESPM ESP32C3 _ ()
--- buttonExample = commonSetup $ \_ -> do
---   b_out <- binaryOutput @"b_out" @8
---   _ <- button @"btn2" @GPIO @9 def {onPress = toggle b_out} def
---   done
-
--- scriptExample :: ESPM ESP32C3 _ ()
--- scriptExample = commonSetup $ \_ -> do
---   num <- number @"my_number" def
---   _ <- script @"my_script" $ setNumber num 42
---   done
-
--- numberExample :: ESPM ESP32C3 _ ()
--- numberExample = commonSetup $ \_ -> do
---   _ <-
---     number @"my_number"
---       def
---         { numberMin = Just 0,
---           numberMax = Just 100,
---           numberStep = Just 2
---         }
---   done
-
--- selectExample :: ESPM ESP32C3 _ ()
--- selectExample = commonSetup $ \_ -> do
---   r <- output @"r" @LEDC @5 def
---   g <- output @"g" @LEDC @6 def
---   b <- output @"b" @LEDC @7 def
---   l <- light @"rgb_light" @RGB def {lightEffects = ["random", "strobe"]} $ LightRGBOptions {red = r, green = g, blue = b}
---   _ <-
---     select @"light_effect"
---       def
---         { selectOptions = ["none", "random", "strobe"]
---           -- onValue = script.execute "set_light_effect"
---         }
---   _ <- script @"set_light_effect" $ do
---     turnOnLWithEffect l "x"
---   done
-
--- outputGPIOExample :: ESPM ESP32C3 _ ()
--- outputGPIOExample = commonSetup $ \_ -> do
---   out <- output @"gpio_out" @GPIO @10 def
---   _ <- switch @"gpio_switch" @GPIO @18 def {onPress = turnOnO out}
---   done
-
--- lightOutExample :: ESPM ESP32C3 _ ()
--- lightOutExample = commonSetup $ \_ -> do
---   out <- output @"out" @GPIO @10 def
---   l <- light @"light_out" @Out def $ LightOutputOptions out
---   _ <- switch @"light_switch" @GPIO @18 def {onPress = turnOnL l, onRelease = turnOffL l}
---   done
-
--- allExamples :: [ESPM ESP32C3 _ ()]
--- allExamples =
--- [ binarySensorExample,
---   coverExample,
---   lightExample,
---   outputExample,
---   sensorExample,
---   switchExample
--- ]
