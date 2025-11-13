@@ -97,8 +97,9 @@ data BinarySensorOptions = BinarySensorOptions
 
 instance Default BinarySensorOptions where
   def = BinarySensorOptions noAction noAction noAction noAction noAction
-    where
-      noAction = ireturn ()
+
+noAction :: IxFree ESPActionF i i ()
+noAction = ireturn ()
 
 --------------------------------------------------------------------------------
 
@@ -242,10 +243,14 @@ newtype SensorADCOptions = SensorADCOptions {attenuation :: Maybe Attenuation}
 -- | Switch https://esphome.io/components/switch/
 data Switch (name :: Symbol) (platform :: Platform) (pin :: Nat) = Switch
 
-newtype SwitchOptions = SwitchOptions {restoreMode :: Maybe RestoreMode}
+data SwitchOptions = SwitchOptions
+  { restoreMode :: Maybe RestoreMode,
+    onTurnOn :: ESPAction,
+    onTurnOff :: ESPAction
+  }
 
 instance Default SwitchOptions where
-  def = SwitchOptions Nothing
+  def = SwitchOptions Nothing noAction noAction
 
 data Logger = Logger
 
