@@ -77,9 +77,6 @@ type family PlatformToSymbol (platform :: Platform) :: Symbol where
 
 data ESPHome (name :: Symbol) = ESPHome
 
--- | Binary output https://esphome.io/components/binary_output/
-data BinaryOutput (name :: Symbol) (pin :: Nat) = BinaryOutput
-
 --------------------------------------------------------------------------------
 
 -- | Binary sensor https://esphome.io/components/binary_sensor/
@@ -324,9 +321,6 @@ data ESPActionF f g next where
   StopCover ::
     (KnownSymbol name) =>
     Cover name platform -> next -> ESPActionF f g next
-  ToggleBinaryOutput ::
-    (KnownSymbol name) =>
-    BinaryOutput name pin -> next -> ESPActionF f g next
   ToggleSwitch ::
     (KnownSymbol name) =>
     Switch name platform pin -> next -> ESPActionF f g next
@@ -362,7 +356,6 @@ instance IxFunctor ESPActionF where
   imap f (SetNumber n v next) = SetNumber n v $ f next
   imap f (SetOutputValue n v next) = SetOutputValue n v $ f next
   imap f (StopCover n next) = StopCover n $ f next
-  imap f (ToggleBinaryOutput n next) = ToggleBinaryOutput n $ f next
   imap f (ToggleSwitch n next) = ToggleSwitch n $ f next
   imap f (TurnOffLight l next) = TurnOffLight l $ f next
   imap f (TurnOffOutput n next) = TurnOffOutput n $ f next
@@ -602,20 +595,6 @@ data ESPF :: Type -> Type -> Type -> Type where
       (Board boardName names freePins)
       (Board boardName newNames newFreePins)
       next
-  MkBinaryOutput ::
-    forall name pin names freePins newNames newFreePins boardName next.
-    ( KnownSymbol name,
-      KnownNat pin,
-      AssertPinIsAvailable pin freePins,
-      AssertNameIsNotUsed name names,
-      newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins
-    ) =>
-    next ->
-    ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
-      next
   MkCover ::
     forall name platform names freePins newNames newFreePins boardName options next.
     ( KnownSymbol name,
@@ -653,7 +632,6 @@ data ESPF :: Type -> Type -> Type -> Type where
 instance IxFunctor ESPF where
   imap f (MkESPHome @name next) = MkESPHome @name $ f next
   imap f (MkLogger next) = MkLogger $ f next
-  imap f (MkBinaryOutput @name @pin next) = MkBinaryOutput @name @pin $ f next
   imap f (MkBinarySensor @name @platform @pin options platformOptions next) =
     MkBinarySensor @name @platform @pin options platformOptions $ f next
   imap f (MkBoard @board next) = MkBoard @board $ f next
@@ -919,10 +897,6 @@ interpretAction (Free espf) = case espf of
     let n = symbolVal (Proxy @name)
         option = Object $ "output.turn_off" .= n
      in [option] <> interpretAction next
-  ToggleBinaryOutput @name _output next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "switch.toggle" .= n
-     in [option] <> interpretAction next
   OpenCover @name _cover next ->
     let n = symbolVal (Proxy @name)
         option = Object $ "cover.open" .= n
@@ -1041,18 +1015,6 @@ interpretESP (Free espf) =
             Node
               "output"
               [ [ "platform" .= platform,
-                  "id" .= snakeCase n,
-                  "pin" .= pinToText @pin
-                ]
-              ]
-       in yamlNode : interpretESP next
-    MkBinaryOutput @name @pin next ->
-      let n = symbolVal (Proxy @name)
-          yamlNode =
-            Node
-              "switch"
-              [ [ ("platform", "gpio"),
-                  "name" .= n,
                   "id" .= snakeCase n,
                   "pin" .= pinToText @pin
                 ]
