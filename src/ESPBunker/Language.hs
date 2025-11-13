@@ -893,7 +893,7 @@ interpretAction (Free espf) = case espf of
      in [option] <> interpretAction next
   RunScript @name _script next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "script.execute" .= n
+        option = Object $ "script.execute" .= snakeCase n
      in [option] <> interpretAction next
   SetNumber @name _number val next ->
     let n = symbolVal (Proxy @name)
@@ -1141,8 +1141,7 @@ interpretESP (Free espf) =
           yamlNode =
             Node
               "script"
-              [ [ "name" .= n,
-                  "id" .= snakeCase n,
+              [ [ "id" .= snakeCase n,
                   "then" .= interpretAction action
                 ]
               ]
