@@ -15,6 +15,7 @@
 module ESPBunker.Examples where
 
 import Data.Default
+import ESPBunker.DeviceClass (DeviceClass (..))
 import ESPBunker.Language
 import GHC.TypeLits (KnownSymbol)
 import Relude hiding ((>>=))
