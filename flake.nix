@@ -45,7 +45,7 @@
       in rec {
         espbunker = final.haskell.lib.justStaticExecutables haskellPackages.espbunker;
         haskellPackages =
-          prev.haskellPackages.override
+          prev.haskell.packages.ghc9122.override
           (old: {
             overrides =
               final.lib.composeExtensions
