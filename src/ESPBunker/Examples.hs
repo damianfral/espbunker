@@ -263,13 +263,7 @@ christmasExample = do
   relay7 <- switch @"relay_7" @GPIO @20 def {switchInverted = Just True}
 
   -- I2C configuration for NFC
-  _ <-
-    i2c
-      $ def
-        { i2cSda = "GPIO2",
-          i2cScl = "GPIO3",
-          i2cScan = Just True
-        }
+  _ <- i2c $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
 
   -- Placeholder: PN532 I2C component (I2C is a configuration component without a return value)
   -- Note: Since I don't have an action to reference the NFC reader directly, I'll just set up the I2C
@@ -406,12 +400,34 @@ christmasExample = do
   -- Binary sensors for buttons with pin modes
   _ <-
     binarySensor @"nfc_toggle_button" @GPIO @9
-      def {onPress = runScript nfcToggleScript, binarySensorPinMode = Just $ PinMode {pinModeInput = True, pinModeOutput = False, pinModeOpenDrain = False, pinModePullUp = True, pinModePullDown = False}}
+      def
+        { onPress = runScript nfcToggleScript,
+          binarySensorPinMode =
+            Just
+              $ PinMode
+                { pinModeInput = True,
+                  pinModeOutput = False,
+                  pinModeOpenDrain = False,
+                  pinModePullUp = True,
+                  pinModePullDown = False
+                }
+        }
       def
 
   _ <-
     binarySensor @"run_leds" @GPIO @8
-      def {onPress = runScript relaySequenceScript, binarySensorPinMode = Just $ PinMode {pinModeInput = True, pinModeOutput = False, pinModeOpenDrain = False, pinModePullUp = True, pinModePullDown = False}}
+      def
+        { onPress = runScript relaySequenceScript,
+          binarySensorPinMode =
+            Just
+              $ PinMode
+                { pinModeInput = True,
+                  pinModeOutput = False,
+                  pinModeOpenDrain = False,
+                  pinModePullUp = True,
+                  pinModePullDown = False
+                }
+        }
       def
 
   -- Interval component (just log to demonstrate the functionality)

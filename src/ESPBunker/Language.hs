@@ -1524,7 +1524,8 @@ interpretESP (Free espf) =
             fromList
               $ catMaybes
                 [ pn532I2CId options <&> \cid -> "id" .= cid,
-                  pn532I2COnTag options <&> \action -> "on_tag" .= interpretAction action
+                  pn532I2COnTag options <&> \action ->
+                    "on_tag" .= interpretAction action
                 ]
           yamlNode = Node "pn532_i2c" [allFields]
        in yamlNode : interpretESP next
