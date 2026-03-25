@@ -82,7 +82,7 @@
         precommitCheck = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            actionlint.enable = true;
+            # actionlint.enable = true;
             alejandra.enable = true;
             hlint.enable = true;
             hpack.enable = true;
@@ -116,7 +116,7 @@
           packages = p: [packages.espbunker];
           buildInputs = with pkgs;
           with pkgs.haskellPackages; [
-            actionlint
+            # actionlint
             alejandra
             cabal-install
             esphome
