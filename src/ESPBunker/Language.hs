@@ -27,6 +27,7 @@ import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
 import Data.Aeson.KeyMap (KeyMap, insert, insertWith)
 import qualified Data.Aeson.KeyMap as KM
+import qualified Data.ByteString.Base64 as Base64
 import Data.Default
 import Data.Type.Bool (Not)
 import qualified Data.Vector as V
@@ -493,6 +494,13 @@ data OTAOptions = OTAOptions {otaPlatform :: Text, otaPassword :: Password}
 
 data API = API
 
+newtype Base64 = Base64 {unBase64 :: ByteString}
+  deriving (Generic)
+  deriving newtype (IsString)
+
+newtype APIOptions = APIOptions {apiEncryptionKey :: Base64}
+  deriving (Generic)
+
 data WebServer = WebServer
 
 --------------------------------------------------------------------------------
@@ -865,7 +873,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       (Board boardName newNames newFreePins)
       next
   MkWifi :: WifiOptions -> next -> ESPF board board next
-  MkAPI :: Password -> next -> ESPF board board next
+  MkAPI :: APIOptions -> next -> ESPF board board next
   MkOTA :: [OTAOptions] -> next -> ESPF board board next
   MkWebServer :: WebServerOptions -> next -> ESPF board board next
   MkI2C :: I2COptions -> next -> ESPF board board next
@@ -1074,8 +1082,8 @@ addBootAction :: Maybe Int -> ESPAction -> ESPHomeOptions -> ESPHomeOptions
 addBootAction mbPriority action opts =
   opts {espHomeOnBoot = Just $ OnBootAction mbPriority action}
 
-api :: Password -> ESPM board board API
-api p = iliftFree $ MkAPI p API
+api :: Base64 -> ESPM board board API
+api key = iliftFree $ MkAPI (APIOptions key) API
 
 ota :: [OTAOptions] -> ESPM board board OTA
 ota opts = iliftFree $ MkOTA opts OTA
@@ -1481,8 +1489,14 @@ interpretESP (Free espf) =
           wifiNode =
             SingleNode "wifi" $ fromList $ catMaybes [Just networksNode, apNode]
        in wifiNode : interpretESP next
-    MkAPI password next ->
-      let apiNode = SingleNode "api" ["password" .= password]
+    MkAPI (APIOptions encryptionKey) next ->
+      let apiNode =
+            SingleNode
+              "api"
+              [ "encryption"
+                  .= object
+                    ["key" .= decodeUtf8 @Text (Base64.encode $ unBase64 encryptionKey)]
+              ]
        in apiNode : interpretESP next
     MkOTA options next ->
       let otaNode =

@@ -250,7 +250,7 @@ christmasExample = do
       $ def
       & addNetwork "GL-AR300M-b66" "!secret password-GL-AR300M-b66"
       & ap "christmas-hotspot" "!secret password-ap"
-  _ <- api "!secret password-api"
+  _ <- api $ Base64 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
   _ <- ota [OTAOptions "esphome" "!secret password-ota"]
   _ <- webServer 80
 

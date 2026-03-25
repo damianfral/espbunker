@@ -19,6 +19,7 @@ dependencies:
   - aeson
   - aeson-casing
   - base
+  - base64-bytestring
   - containers
   - data-default
   - indexed
