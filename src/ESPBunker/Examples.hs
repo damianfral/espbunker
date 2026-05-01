@@ -450,6 +450,68 @@ priorityExample = do
   _ <- webServer 80
   done
 
+buttonExample :: ESPM ESP32C3 _ ()
+buttonExample = do
+  _ <- board @ESP32C3
+  _ <- esphome @"button-test" def
+  _ <- logger
+  _ <- wifi $ def & addNetwork "ssid" "password"
+  _ <-
+    button @"reset_button" @19
+      def
+        { onPress = log "Button pressed!",
+          binarySensorIcon = Just "mdi:button",
+          binarySensorEntityCategory = Just "config"
+        }
+  _ <- ota [OTAOptions "esphome" "pass"]
+  _ <- webServer 80
+  done
+
+apiExample :: ESPM ESP32C3 _ ()
+apiExample = do
+  _ <- board @ESP32C3
+  _ <- esphome @"api-test" def
+  _ <- logger
+  _ <- wifi $ def & addNetwork "ssid" "password"
+  _ <- api $ Base64 "12345678901234567890123456789012"
+  _ <- ota [OTAOptions "esphome" "pass"]
+  _ <- webServer 80
+  done
+
+otaMultipleExample :: ESPM ESP32C3 _ ()
+otaMultipleExample = do
+  _ <- board @ESP32C3
+  _ <- esphome @"ota-multi-test" def
+  _ <- logger
+  _ <- wifi $ def & addNetwork "ssid" "password"
+  _ <- ota [OTAOptions "esphome" "password"]
+  _ <- webServer 80
+  done
+
+switchWithAllOptionsExample :: ESPM ESP32C3 _ ()
+switchWithAllOptionsExample = do
+  _ <- board @ESP32C3
+  _ <- esphome @"switch-all-options" def
+  _ <- logger
+  _ <- wifi $ def & addNetwork "ssid" "password"
+  _ <-
+    switch @"full_featured_switch" @GPIO @10
+      def
+        { switchRestoreMode = Just ALWAYS_ON,
+          onTurnOn = log "Switch turned ON",
+          onTurnOff = log "Switch turned OFF",
+          switchDeviceClass = Just DeviceClassOutlet,
+          switchIcon = Just "mdi:toggle-switch",
+          switchEntityCategory = Just "config",
+          switchInternal = Just False,
+          switchInterlock = [],
+          switchInterlockWaitTime = Nothing,
+          switchInverted = Just False
+        }
+  _ <- ota [OTAOptions "esphome" "pass"]
+  _ <- webServer 80
+  done
+
 examples :: [(Text, SomeESPM)]
 examples =
   [ ("binary sensor", SomeESPM binarySensorExample),
@@ -467,5 +529,9 @@ examples =
     ("cover with options", SomeESPM coverWithOptionsExample),
     ("number with options", SomeESPM numberWithOptionsExample),
     ("christmas example", SomeESPM christmasExample),
-    ("priority example", SomeESPM priorityExample)
+    ("priority example", SomeESPM priorityExample),
+    ("button", SomeESPM buttonExample),
+    ("api", SomeESPM apiExample),
+    ("ota multiple", SomeESPM otaMultipleExample),
+    ("switch with all options", SomeESPM switchWithAllOptionsExample)
   ]

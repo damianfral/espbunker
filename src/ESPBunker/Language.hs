@@ -1339,7 +1339,6 @@ interpretESP (Free espf) =
                       ("icon",) . toJSON <$> switchIcon opts,
                       ("entity_category",) . toJSON <$> switchEntityCategory opts,
                       ("internal",) . toJSON <$> switchInternal opts,
-                      ("optimistic",) . toJSON <$> switchOptimistic opts,
                       ("interlock",) . toJSON <$> if null (switchInterlock opts) then Nothing else Just (switchInterlock opts),
                       switchInterlockWaitTime opts <&> \wait ->
                         ("interlock_wait_time", String $ show wait <> "ms"),
@@ -1376,7 +1375,7 @@ interpretESP (Free espf) =
                   [ "platform" .= String "gpio",
                     "pin" .= pinToText @pin,
                     "name" .= n,
-                    "id" .= snakeCase n
+                    "id" .= (snakeCase n <> "_binary_sensor")
                   ]
                 actionOpts =
                   case onPress options of
