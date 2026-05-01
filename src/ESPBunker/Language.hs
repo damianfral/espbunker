@@ -765,7 +765,6 @@ data ESPF :: Type -> Type -> Type -> Type where
       KnownSymbol platformSymbol,
       KeyMapOptions options,
       options ~ PlatformToOptions Light platform,
-      KeyMapOptions options,
       board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames freePins
     ) =>
