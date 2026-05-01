@@ -866,6 +866,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins
     ) =>
+    BinarySensorOptions ->
     next ->
     ESPF
       (Board boardName names freePins)
@@ -885,7 +886,7 @@ instance IxFunctor ESPF where
   imap f (MkBinarySensor @name @platform @pin options platformOptions next) =
     MkBinarySensor @name @platform @pin options platformOptions $ f next
   imap f (MkBoard @board next) = MkBoard @board $ f next
-  imap f (MkButton @name @pin next) = MkButton @name @pin $ f next
+  imap f (MkButton @name @pin options next) = MkButton @name @pin options $ f next
   imap f (MkCover @name @platform opts next) =
     MkCover @name @platform opts $ f next
   imap f (MkLight @name @platform options platformOptions next) =
@@ -1049,6 +1050,22 @@ cover ::
     (Board boardName newNames freePins)
     (Cover name platform)
 cover opts = iliftFree (MkCover @name @platform opts Cover)
+
+button ::
+  forall name pin names freePins newNames newFreePins boardName.
+  ( KnownSymbol name,
+    KnownNat pin,
+    AssertPinIsAvailable pin freePins,
+    AssertNameIsNotUsed name names,
+    newNames ~ Insert name names,
+    newFreePins ~ Remove pin freePins
+  ) =>
+  BinarySensorOptions ->
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames newFreePins)
+    ()
+button opts = iliftFree (MkButton @name @pin opts ())
 
 number ::
   forall name names freePins newNames boardName.
@@ -1316,7 +1333,7 @@ interpretESP (Free espf) =
                   <> toKeyMap opts
               ]
        in yamlNode : interpretESP next
-    MkButton @name @pin next ->
+    MkButton @name @pin options next ->
       let n = symbolVal (Proxy @name)
           buttonNode =
             Node
@@ -1328,15 +1345,18 @@ interpretESP (Free espf) =
               ]
 
           binarySensorNode =
-            Node
-              "binary_sensor"
-              [ [ ("platform", "gpio"),
-                  "pin" .= pinToText @pin,
-                  "name" .= n,
-                  "id" .= snakeCase n,
-                  "on_press" .= V.fromList [object ["button.press" .= n]]
-                ]
-              ]
+            let baseOpts =
+                  [ "platform" .= String "gpio",
+                    "pin" .= pinToText @pin,
+                    "name" .= n,
+                    "id" .= snakeCase n
+                  ]
+                actionOpts =
+                  case onPress options of
+                    Pure () -> []
+                    Free _ -> ["on_press" .= interpretAction (onPress options)]
+                allOpts = fold @[] [baseOpts, actionOpts, toKeyMap options]
+             in Node "binary_sensor" [allOpts]
        in buttonNode : binarySensorNode : interpretESP next
     MkOutput @name @platform @pin _opts next ->
       let n = symbolVal (Proxy @name)
