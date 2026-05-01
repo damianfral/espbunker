@@ -264,7 +264,7 @@ data LightMonochromaticOptions where
   LightMonochromaticOptions ::
     forall output platform.
     (KnownSymbol output) =>
-    {ligthMonochromaticOutput :: Output output platform} ->
+    {lightMonochromaticOutput :: Output output platform} ->
     LightMonochromaticOptions
 
 data LightCWWWOptions where
