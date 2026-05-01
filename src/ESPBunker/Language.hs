@@ -843,7 +843,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       (Board boardName newNames newFreePins)
       next
   MkCover ::
-    forall name platform names freePins newNames newFreePins boardName options next.
+    forall name platform names freePins newNames boardName options next.
     ( KnownSymbol name,
       AssertNameIsNotUsed name names,
       newNames ~ Insert name names,
@@ -855,7 +855,7 @@ data ESPF :: Type -> Type -> Type -> Type where
     next ->
     ESPF
       (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
+      (Board boardName newNames freePins)
       next
   MkButton ::
     forall name pin names freePins newNames newFreePins boardName next.
@@ -1035,7 +1035,7 @@ output ::
 output opts = iliftFree (MkOutput @name @platform @pin opts Output)
 
 cover ::
-  forall name platform names freePins newNames newFreePins boardName options.
+  forall name platform names freePins newNames boardName options.
   ( KnownSymbol name,
     AssertNameIsNotUsed name names,
     newNames ~ Insert name names,
@@ -1046,7 +1046,7 @@ cover ::
   options ->
   ESPM
     (Board boardName names freePins)
-    (Board boardName newNames newFreePins)
+    (Board boardName newNames freePins)
     (Cover name platform)
 cover opts = iliftFree (MkCover @name @platform opts Cover)
 
