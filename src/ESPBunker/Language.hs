@@ -422,7 +422,7 @@ instance Default SwitchOptions where
 data Logger = Logger
 
 -- | I2C Bus https://esphome.io/components/i2c/
-data I2C = I2C
+data I2CBus (name :: Symbol) = I2CBus
 
 data I2COptions = I2COptions
   { i2cSda :: Text, -- Pin for SDA
@@ -436,7 +436,7 @@ instance Default I2COptions where
   def = I2COptions "SDA" "SCL" (Just True) Nothing
 
 -- | PN532 NFC reader I2C component
-data PN532I2C = PN532I2C
+data PN532I2C (name :: Symbol) = PN532I2C
 
 data PN532I2COptions = PN532I2COptions
   { pn532I2CId :: Maybe Text, -- Component ID
@@ -448,7 +448,7 @@ instance Default PN532I2COptions where
   def = PN532I2COptions Nothing Nothing
 
 -- | Interval component https://esphome.io/components/interval/
-data Interval = Interval
+data Interval (name :: Symbol) = Interval
 
 data IntervalOptions = IntervalOptions
   { intervalId :: Maybe Text, -- Component ID (optional)
@@ -876,9 +876,18 @@ data ESPF :: Type -> Type -> Type -> Type where
   MkAPI :: APIOptions -> next -> ESPF board board next
   MkOTA :: [OTAOptions] -> next -> ESPF board board next
   MkWebServer :: WebServerOptions -> next -> ESPF board board next
-  MkI2C :: I2COptions -> next -> ESPF board board next
-  MkPN532I2C :: PN532I2COptions -> next -> ESPF board board next
-  MkInterval :: IntervalOptions -> next -> ESPF board board next
+  MkI2C ::
+    forall name board next.
+    (KnownSymbol name) =>
+    I2COptions -> next -> ESPF board board next
+  MkPN532I2C ::
+    forall name board next.
+    (KnownSymbol name) =>
+    PN532I2COptions -> next -> ESPF board board next
+  MkInterval ::
+    forall name board next.
+    (KnownSymbol name) =>
+    IntervalOptions -> next -> ESPF board board next
 
 instance IxFunctor ESPF where
   imap f (MkESPHome @name options next) = MkESPHome @name options $ f next
@@ -904,9 +913,9 @@ instance IxFunctor ESPF where
   imap f (MkOTA opts next) = MkOTA opts $ f next
   imap f (MkAPI opts next) = MkAPI opts $ f next
   imap f (MkWebServer opts next) = MkWebServer opts $ f next
-  imap f (MkI2C opts next) = MkI2C opts $ f next
-  imap f (MkPN532I2C opts next) = MkPN532I2C opts $ f next
-  imap f (MkInterval opts next) = MkInterval opts $ f next
+  imap f (MkI2C @name opts next) = MkI2C @name opts $ f next
+  imap f (MkPN532I2C @name opts next) = MkPN532I2C @name opts $ f next
+  imap f (MkInterval @name opts next) = MkInterval @name opts $ f next
 
 --------------------------------------------------------------------------------
 
@@ -1080,9 +1089,6 @@ number ::
     (NumberComponent name)
 number opts = iliftFree $ MkNumber @name opts NumberComponent
 
-interval :: IntervalOptions -> ESPM board board Interval
-interval opts = iliftFree $ MkInterval opts Interval
-
 wifi :: WifiOptions -> ESPM board board Wifi
 wifi opts = iliftFree $ MkWifi opts Wifi
 
@@ -1107,11 +1113,14 @@ ota opts = iliftFree $ MkOTA opts OTA
 webServer :: Int -> ESPM board board WebServer
 webServer port = iliftFree $ MkWebServer (WebServerOptions port) WebServer
 
-i2c :: I2COptions -> ESPM board board I2C
-i2c opts = iliftFree $ MkI2C opts I2C
+i2c :: I2COptions -> ESPM board board (I2CBus "i2c_1")
+i2c opts = iliftFree $ MkI2C @"i2c_1" opts I2CBus
 
-pn532i2c :: PN532I2COptions -> ESPM board board PN532I2C
-pn532i2c opts = iliftFree $ MkPN532I2C opts PN532I2C
+pn532i2c :: PN532I2COptions -> ESPM board board (PN532I2C "pn532")
+pn532i2c opts = iliftFree $ MkPN532I2C @"pn532" opts PN532I2C
+
+interval :: IntervalOptions -> ESPM board board (Interval "interval_1")
+interval opts = iliftFree $ MkInterval @"interval_1" opts Interval
 
 --------------------------------------------------------------------------------
 
@@ -1525,34 +1534,39 @@ interpretESP (Free espf) =
     MkWebServer (WebServerOptions port) next ->
       let webServerNode = SingleNode "web_server" ["port" .= port]
        in webServerNode : interpretESP next
-    MkI2C options next ->
-      let i2cNode =
+    MkI2C @name options next ->
+      let n = symbolVal (Proxy @name)
+          i2cNode =
             Node
               "i2c"
               [ fromList
                   $ catMaybes
-                    [ Just $ "sda" .= i2cSda options,
+                    [ Just $ "id" .= n,
+                      Just $ "sda" .= i2cSda options,
                       Just $ "scl" .= i2cScl options,
                       i2cScan options <&> \scan -> "scan" .= scan,
                       i2cFrequency options <&> \freq -> "frequency" .= freq
                     ]
               ]
        in i2cNode : interpretESP next
-    MkPN532I2C options next ->
-      let allFields =
+    MkPN532I2C @name options next ->
+      let n = symbolVal (Proxy @name)
+          allFields =
             fromList
               $ catMaybes
-                [ pn532I2CId options <&> \cid -> "id" .= cid,
+                [ Just $ "id" .= n,
+                  pn532I2CId options <&> \cid -> "id" .= cid,
                   pn532I2COnTag options <&> \action ->
                     "on_tag" .= interpretAction action
                 ]
           yamlNode = Node "pn532_i2c" [allFields]
        in yamlNode : interpretESP next
-    MkInterval options next ->
-      let intervalNode =
+    MkInterval @name options next ->
+      let n = symbolVal (Proxy @name)
+          intervalNode =
             Node
               "interval"
-              [ [ "id" .= fromMaybe "interval_component" (intervalId options),
+              [ [ "id" .= n,
                   "interval" .= fromMaybe "10s" (intervalInterval options),
                   "then" .= interpretAction (intervalAction options)
                 ]
