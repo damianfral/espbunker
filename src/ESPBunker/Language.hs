@@ -63,6 +63,24 @@ data RestoreMode
 instance ToJSON RestoreMode where
   toJSON = toJSON @Text . show
 
+data FrameworkType
+  = FrameworkArduino
+  | FrameworkESPHome
+  deriving (Show, Generic)
+
+instance ToJSON FrameworkType where
+  toJSON FrameworkArduino = String "arduino"
+  toJSON FrameworkESPHome = String "esphome"
+
+data FrameworkVersion
+  = Latest
+  | Version Text
+  deriving (Show, Generic)
+
+instance ToJSON FrameworkVersion where
+  toJSON Latest = String "latest"
+  toJSON (Version v) = String v
+
 type family PlatformToSymbol (platform :: Platform) :: Symbol where
   PlatformToSymbol GPIO = "gpio"
   PlatformToSymbol Out = "output"
@@ -1296,7 +1314,7 @@ interpretESP (Free espf) =
       let boardName = symbolVal (Proxy @boardName)
           boardSubnode =
             [ "board" .= boardName,
-              "framework" .= object [("type", "arduino"), ("version", "latest")]
+              "framework" .= object [("type", toJSON FrameworkArduino), ("version", toJSON Latest)]
             ]
           yamlNode = SingleNode "esp32" boardSubnode
        in yamlNode : interpretESP next
