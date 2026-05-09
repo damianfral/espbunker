@@ -38,9 +38,13 @@ commonSetup = do
 binarySensorExample :: ESPM ESP32C3 _ ()
 binarySensorExample = do
   _ <- commonSetup
+  ledOut <- output @"led_out" @LEDC @2 def
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions ledOut
   let blinkScript = replicateM_ 4 $ do
-        log "Blinking..."
-        delay 1000
+        turnOnL lamp
+        delay 300
+        turnOffL lamp
+        delay 300
   _ <- binarySensor @"btn1" @GPIO @1 def {onPress = blinkScript} Nothing
   done
 
@@ -67,7 +71,7 @@ lightExample = do
   _ <- commonSetup
   -- Monochromatic light
   out1 <- output @"out1" @LEDC @2 def
-  _ <- light @"mono_light" @Monochromatic def $ LightMonochromaticOptions out1
+  monoLight <- light @"mono_light" @Monochromatic def $ LightMonochromaticOptions out1
 
   -- CWWW light
   cOut <- output @"c_out" @LEDC @3 def
@@ -86,12 +90,33 @@ lightExample = do
   g <- output @"g" @LEDC @6 def
   b <- output @"b" @LEDC @7 def
   _ <- light @"rgb_light" @RGB def $ LightRGBOptions {red = r, green = g, blue = b}
+
+  -- Physical switch controls the monochromatic light
+  _ <-
+    switch @"mono_switch" @GPIO @0
+      def
+        { onTurnOn = turnOnL monoLight,
+          onTurnOff = turnOffL monoLight
+        }
   done
 
 outputExample :: ESPM ESP32C3 _ ()
 outputExample = do
   _ <- commonSetup
-  _ <- output @"ledc_with_freq" @LEDC @2 def {frequency = Just 25000}
+  out <- output @"ledc_with_freq" @LEDC @2 def {frequency = Just 25000}
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions out
+  let onAction = do
+        log "Lamp ON"
+        turnOnL lamp
+      offAction = do
+        log "Lamp OFF"
+        turnOffL lamp
+  _ <-
+    switch @"light_switch" @GPIO @0
+      def
+        { onTurnOn = onAction,
+          onTurnOff = offAction
+        }
   done
 
 sensorExample :: ESPM ESP32C3 _ ()
@@ -103,7 +128,21 @@ sensorExample = do
 switchExample :: ESPM ESP32C3 _ ()
 switchExample = do
   _ <- commonSetup
-  _ <- switch @"switch_with_restore" @GPIO @0 def {switchRestoreMode = Just ALWAYS_ON}
+  out <- output @"lamp_out" @LEDC @2 def
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions out
+  let onAction = do
+        log "Switch ON — lighting lamp"
+        turnOnL lamp
+      offAction = do
+        log "Switch OFF — extinguishing lamp"
+        turnOffL lamp
+  _ <-
+    switch @"switch_with_restore" @GPIO @0
+      def
+        { switchRestoreMode = Just ALWAYS_ON,
+          onTurnOn = onAction,
+          onTurnOff = offAction
+        }
   done
 
 data SomeESPM where
@@ -119,8 +158,16 @@ data SomeESPM where
 scriptExample :: ESPM ESP32C3 _ ()
 scriptExample = do
   _ <- commonSetup
-  logScript <- script @"script1" $ log "asd"
-  _ <- binarySensor @"btn1" @GPIO @1 def {onPress = runScript logScript} def
+  out <- output @"lamp_out" @LEDC @2 def
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions out
+  toggleScript <- script @"toggle_script" $ do
+    log "Toggling lamp via script"
+    turnOnL lamp
+    delay 1000
+    turnOffL lamp
+    delay 500
+    turnOnL lamp
+  _ <- binarySensor @"btn1" @GPIO @1 def {onPress = runScript toggleScript} def
   done
 
 switchlightOutputExample :: ESPM ESP32C3 _ ()
@@ -154,12 +201,18 @@ sensorWithOptionsExample = do
 binarySensorWithOptionsExample :: ESPM ESP32C3 _ ()
 binarySensorWithOptionsExample = do
   _ <- commonSetup
-  let onMotion = log "Motion detected!"
+  out <- output @"light_out" @LEDC @0 def
+  lamp <- light @"motion_lamp" @Monochromatic def $ LightMonochromaticOptions out
+  let onMotion = do
+        log "Motion detected! Turning on light for 10s"
+        turnOnL lamp
+        delay 10000
+        turnOffL lamp
   _ <-
     binarySensor @"motion_sensor" @GPIO @2
       def
         { onPress = onMotion,
-          binarySensorDeviceClass = Nothing, -- Motion is not a valid device class for gpio binary sensors
+          binarySensorDeviceClass = Nothing,
           binarySensorIcon = Just "mdi:motion-sensor",
           binarySensorEntityCategory = Just "diagnostic",
           binarySensorInternal = Just False
@@ -171,7 +224,7 @@ lightWithOptionsExample :: ESPM ESP32C3 _ ()
 lightWithOptionsExample = do
   _ <- commonSetup
   out1 <- output @"light_out1" @LEDC @2 def
-  _ <-
+  enhancedLight <-
     light @"enhanced_light" @Monochromatic
       def
         { lightTransitionLength = Just 1000,
@@ -186,15 +239,31 @@ lightWithOptionsExample = do
           lightRestoreMode = Just RESTORE_DEFAULT_OFF
         }
       $ LightMonochromaticOptions out1
+  _ <-
+    switch @"light_switch" @GPIO @0
+      def
+        { onTurnOn = turnOnL enhancedLight,
+          onTurnOff = turnOffL enhancedLight
+        }
   done
 
 switchWithOptionsExample :: ESPM ESP32C3 _ ()
 switchWithOptionsExample = do
   _ <- commonSetup
+  out <- output @"lamp_out" @LEDC @2 def
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions out
+  let onAction = do
+        log "Outlet ON — lamp lit"
+        turnOnL lamp
+      offAction = do
+        log "Outlet OFF — lamp off"
+        turnOffL lamp
   _ <-
     switch @"enhanced_switch" @GPIO @0
       def
         { switchRestoreMode = Just ALWAYS_ON,
+          onTurnOn = onAction,
+          onTurnOff = offAction,
           switchDeviceClass = Just DeviceClassOutlet,
           switchIcon = Just "mdi:power-plug",
           switchEntityCategory = Just "config",
@@ -456,11 +525,18 @@ buttonExample = do
   _ <- esphome @"button-test" def
   _ <- logger
   _ <- wifi $ def & addNetwork "ssid" "password"
+  relay <- switch @"power_relay" @GPIO @18 def
+  let powerCycle = do
+        log "Power cycling system..."
+        turnOff relay
+        delay 2000
+        turnOn relay
+        log "Power cycle complete"
   _ <-
     button @"reset_button" @19
       def
-        { onPress = log "Button pressed!",
-          binarySensorIcon = Just "mdi:button",
+        { onPress = powerCycle,
+          binarySensorIcon = Just "mdi:restart",
           binarySensorEntityCategory = Just "config"
         }
   _ <- ota [OTAOptions "esphome" "pass"]
