@@ -63,18 +63,14 @@ data RestoreMode
 instance ToJSON RestoreMode where
   toJSON = toJSON @Text . show
 
-data FrameworkType
-  = FrameworkArduino
-  | FrameworkESPHome
+data FrameworkType = FrameworkArduino | FrameworkESPHome
   deriving (Show, Generic)
 
 instance ToJSON FrameworkType where
   toJSON FrameworkArduino = String "arduino"
   toJSON FrameworkESPHome = String "esphome"
 
-data FrameworkVersion
-  = Latest
-  | Version Text
+data FrameworkVersion = Latest | Version Text
   deriving (Show, Generic)
 
 instance ToJSON FrameworkVersion where
@@ -99,14 +95,12 @@ type family PlatformToSymbol (platform :: Platform) :: Symbol where
 
 data ESPHome = ESPHome
 
-newtype ESPHomeOptions = ESPHomeOptions
-  { espHomeOnBoot :: Maybe OnBootAction
-  }
+newtype ESPHomeOptions = ESPHomeOptions {espHomeOnBoot :: Maybe OnBootAction}
   deriving (Generic)
 
 data OnBootAction = OnBootAction
   { onBootPriority :: Maybe Int,
-    onBootAction :: ESPAction -- The single action to run on boot (can be a sequence)
+    onBootAction :: ESPAction
   }
   deriving (Generic)
 
@@ -603,8 +597,10 @@ instance IxFunctor ESPActionF where
   imap f (Delay ms next) = Delay ms $ f next
   imap f (ComponentUpdate cID next) = ComponentUpdate cID $ f next
   imap f (ComponentSuspend cID next) = ComponentSuspend cID $ f next
-  imap f (IfSwitchIsOn sw thenAct elseAct next) = IfSwitchIsOn sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
-  imap f (IfSwitchIsOff sw thenAct elseAct next) = IfSwitchIsOff sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
+  imap f (IfSwitchIsOn sw thenAct elseAct next) =
+    IfSwitchIsOn sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
+  imap f (IfSwitchIsOff sw thenAct elseAct next) =
+    IfSwitchIsOff sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
   imap f (IncrementNumber n v next) = IncrementNumber n v $ f next
   imap f (LogMsg msg next) = LogMsg msg $ f next
   imap f (OpenCover n next) = OpenCover n $ f next
@@ -652,10 +648,14 @@ componentUpdate cID = iliftFree $ ComponentUpdate cID ()
 componentSuspend :: Text -> ESPAction
 componentSuspend cID = iliftFree $ ComponentSuspend cID ()
 
-ifSwitchIsOn :: (KnownSymbol name) => Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
+ifSwitchIsOn ::
+  (KnownSymbol name) =>
+  Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
 ifSwitchIsOn sw thenAction elseAction = iliftFree $ IfSwitchIsOn sw thenAction elseAction ()
 
-ifSwitchIsOff :: (KnownSymbol name) => Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
+ifSwitchIsOff ::
+  (KnownSymbol name) =>
+  Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
 ifSwitchIsOff sw thenAction elseAction = iliftFree $ IfSwitchIsOff sw thenAction elseAction ()
 
 log :: Text -> ESPAction
@@ -797,7 +797,18 @@ data ESPF :: Type -> Type -> Type -> Type where
     ) =>
     ESPAction -> next -> ESPF board newBoard next
   MkSwitch ::
-    forall name platform pin names freePins newNames newFreePins boardName board newBoard next.
+    forall
+      name
+      platform
+      pin
+      names
+      freePins
+      newNames
+      newFreePins
+      boardName
+      board
+      newBoard
+      next.
     ( board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames freePins,
       KnownSymbol name,
@@ -810,7 +821,19 @@ data ESPF :: Type -> Type -> Type -> Type where
     ) =>
     SwitchOptions -> next -> ESPF board newBoard next
   MkSensor ::
-    forall name platform pin names freePins newNames newFreePins boardName board newBoard options next.
+    forall
+      name
+      platform
+      pin
+      names
+      freePins
+      newNames
+      newFreePins
+      boardName
+      board
+      newBoard
+      options
+      next.
     ( board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames newFreePins,
       KnownSymbol name,
@@ -843,7 +866,17 @@ data ESPF :: Type -> Type -> Type -> Type where
     ) =>
     NumberOptions -> next -> ESPF board newBoard next
   MkOutput ::
-    forall name platform pin names freePins newNames newFreePins boardName options next.
+    forall
+      name
+      platform
+      pin
+      names
+      freePins
+      newNames
+      newFreePins
+      boardName
+      options
+      next.
     ( KnownSymbol name,
       KnownSymbol (PlatformToSymbol platform),
       KnownNat pin,
@@ -913,7 +946,8 @@ instance IxFunctor ESPF where
   imap f (MkBinarySensor @name @platform @pin options platformOptions next) =
     MkBinarySensor @name @platform @pin options platformOptions $ f next
   imap f (MkBoard @board next) = MkBoard @board $ f next
-  imap f (MkButton @name @pin options next) = MkButton @name @pin options $ f next
+  imap f (MkButton @name @pin options next) =
+    MkButton @name @pin options $ f next
   imap f (MkCover @name @platform opts next) =
     MkCover @name @platform opts $ f next
   imap f (MkLight @name @platform options platformOptions next) =
@@ -951,14 +985,25 @@ board ::
   ESPM board board (Board boardName names pins)
 board = iliftFree $ MkBoard @board Board
 
-esphome :: forall name board. (KnownSymbol name) => ESPHomeOptions -> ESPM board board ()
+esphome ::
+  forall name board. (KnownSymbol name) => ESPHomeOptions -> ESPM board board ()
 esphome options = iliftFree $ MkESPHome @name options ()
 
 logger :: ESPM board board ()
 logger = iliftFree $ MkLogger ()
 
 switch ::
-  forall name platform pin names freePins newNames newFreePins boardName board newBoard.
+  forall
+    name
+    platform
+    pin
+    names
+    freePins
+    newNames
+    newFreePins
+    boardName
+    board
+    newBoard.
   ( board ~ Board boardName names freePins,
     newBoard ~ Board boardName newNames freePins,
     KnownSymbol name,
@@ -1027,7 +1072,18 @@ light options platformOptions =
   iliftFree $ MkLight @name @platform options platformOptions Light
 
 sensor ::
-  forall name platform pin names freePins newNames newFreePins boardName board newBoard options.
+  forall
+    name
+    platform
+    pin
+    names
+    freePins
+    newNames
+    newFreePins
+    boardName
+    board
+    newBoard
+    options.
   ( board ~ Board boardName names freePins,
     newBoard ~ Board boardName newNames newFreePins,
     KnownSymbol name,
@@ -1304,9 +1360,10 @@ interpretESP (Free espf) =
             case espHomeOnBoot options of
               Nothing -> []
               Just (OnBootAction mbPriority action) ->
-                let priorityField = maybe [] (\p -> ["priority" .= p]) mbPriority
+                let priorityField =
+                      maybe [] (\p -> ["priority" .= p]) mbPriority
                     actionField = ["then" .= interpretAction action]
-                 in ["on_boot" .= object (fromList $ priorityField ++ actionField)]
+                 in ["on_boot" .= object (fromList $ priorityField <> actionField)]
           espHomeOpts = basicOpts <> onBootPart
           espHomeNode = SingleNode "esphome" espHomeOpts
        in espHomeNode : interpretESP next
@@ -1314,12 +1371,16 @@ interpretESP (Free espf) =
       let boardName = symbolVal (Proxy @boardName)
           boardSubnode =
             [ "board" .= boardName,
-              "framework" .= object [("type", toJSON FrameworkArduino), ("version", toJSON Latest)]
+              "framework"
+                .= object
+                  [ ("type", toJSON FrameworkArduino),
+                    ("version", toJSON Latest)
+                  ]
             ]
           yamlNode = SingleNode "esp32" boardSubnode
        in yamlNode : interpretESP next
     MkLogger next ->
-      let espHomeNode = SingleNode "logger" mempty -- [("level", "DEBUG")]
+      let espHomeNode = SingleNode "logger" mempty
        in espHomeNode : interpretESP next
     MkSwitch @name @platform @pin opts next ->
       let n = symbolVal (Proxy @name)
@@ -1339,7 +1400,11 @@ interpretESP (Free espf) =
                       ("icon",) . toJSON <$> switchIcon opts,
                       ("entity_category",) . toJSON <$> switchEntityCategory opts,
                       ("internal",) . toJSON <$> switchInternal opts,
-                      ("interlock",) . toJSON <$> if null (switchInterlock opts) then Nothing else Just (switchInterlock opts),
+                      ("interlock",)
+                        . toJSON
+                        <$> if null (switchInterlock opts)
+                          then Nothing
+                          else Just (switchInterlock opts),
                       switchInterlockWaitTime opts <&> \wait ->
                         ("interlock_wait_time", String $ show wait <> "ms"),
                       switchInverted opts <&> \inv -> ("inverted", toJSON inv)
@@ -1435,7 +1500,8 @@ interpretESP (Free espf) =
                           Just $ "accuracy_decimals" .= accuracy,
                         do
                           interv <- sensorIntervalMs options
-                          Just $ "update_interval" .= (show @Text interv <> "ms"),
+                          Just
+                            ("update_interval" .= (show @Text interv <> "ms")),
                         do
                           stateClass <- sensorStateClass options
                           Just $ "state_class" .= stateClass,
@@ -1448,7 +1514,8 @@ interpretESP (Free espf) =
                         do
                           entityCategory <- sensorEntityCategory options
                           Just $ "entity_category" .= entityCategory,
-                        sensorInternal options <&> \internal -> "internal" .= internal
+                        sensorInternal options
+                          <&> \internal -> "internal" .= internal
                       ]
                   )
                 <> toKeyMap platformOptions
@@ -1483,11 +1550,21 @@ interpretESP (Free espf) =
                         "mode"
                           .= object
                             ( catMaybes
-                                [ if pinModeInput mode then Just ("input", toJSON True) else Nothing,
-                                  if pinModeOutput mode then Just ("output", toJSON True) else Nothing,
-                                  if pinModeOpenDrain mode then Just ("open_drain", toJSON True) else Nothing,
-                                  if pinModePullUp mode then Just ("pullup", toJSON True) else Nothing,
-                                  if pinModePullDown mode then Just ("pulldown", toJSON True) else Nothing
+                                [ if pinModeInput mode
+                                    then Just ("input", toJSON True)
+                                    else Nothing,
+                                  if pinModeOutput mode
+                                    then Just ("output", toJSON True)
+                                    else Nothing,
+                                  if pinModeOpenDrain mode
+                                    then Just ("open_drain", toJSON True)
+                                    else Nothing,
+                                  if pinModePullUp mode
+                                    then Just ("pullup", toJSON True)
+                                    else Nothing,
+                                  if pinModePullDown mode
+                                    then Just ("pulldown", toJSON True)
+                                    else Nothing
                                 ]
                             )
                       ]
@@ -1540,7 +1617,10 @@ interpretESP (Free espf) =
               "api"
               [ "encryption"
                   .= object
-                    ["key" .= decodeUtf8 @Text (Base64.encode $ unBase64 encryptionKey)]
+                    [ "key"
+                        .= decodeUtf8 @Text
+                          (Base64.encode $ unBase64 encryptionKey)
+                    ]
               ]
        in apiNode : interpretESP next
     MkOTA options next ->
