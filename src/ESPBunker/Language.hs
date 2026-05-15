@@ -686,11 +686,11 @@ type family Remove (x :: k) (xs :: [k]) :: [k] where
   Remove x (y ': xs) = y ': Remove x xs
 
 -- A constraint to force uniqueness of names (Symbols)
-type family AssertNameIsNotUsed (x :: k) (xs :: [k]) :: Constraint where
-  AssertNameIsNotUsed x xs =
+type family AssertNameIsAvailable (x :: k) (xs :: [k]) :: Constraint where
+  AssertNameIsAvailable x xs =
     Assert
       (Not (Elem x xs))
-      (TypeError ('Text "Duplicate id name: " :<>: 'ShowType x))
+      (TypeError ('Text "Name not available: " :<>: 'ShowType x))
 
 -- A constraint to force availability of pins (Symbols)
 type family AssertPinIsAvailable (x :: k) (xs :: [k]) :: Constraint where
@@ -750,7 +750,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       next.
     ( KnownSymbol name,
       KnownNat pin,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       AssertPinIsAvailable pin freePins,
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins,
@@ -777,7 +777,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       newBoard
       next.
     ( KnownSymbol name,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names,
       platformSymbol ~ PlatformToSymbol platform,
       KnownSymbol platformSymbol,
@@ -792,7 +792,7 @@ data ESPF :: Type -> Type -> Type -> Type where
     ( board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames freePins,
       KnownSymbol name,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
     ESPAction -> next -> ESPF board newBoard next
@@ -802,7 +802,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       newBoard ~ Board boardName newNames freePins,
       KnownSymbol name,
       KnownNat pin,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       AssertPinIsAvailable pin freePins,
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins,
@@ -815,7 +815,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       newBoard ~ Board boardName newNames newFreePins,
       KnownSymbol name,
       KnownNat pin,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       AssertPinIsAvailable pin freePins,
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins,
@@ -829,7 +829,7 @@ data ESPF :: Type -> Type -> Type -> Type where
     ( board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames freePins,
       KnownSymbol name,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
     next -> ESPF board newBoard next
@@ -838,7 +838,7 @@ data ESPF :: Type -> Type -> Type -> Type where
     ( board ~ Board boardName names freePins,
       newBoard ~ Board boardName newNames freePins,
       KnownSymbol name,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
     NumberOptions -> next -> ESPF board newBoard next
@@ -848,7 +848,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       KnownSymbol (PlatformToSymbol platform),
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins,
       options ~ PlatformToOptions Output platform,
@@ -863,7 +863,7 @@ data ESPF :: Type -> Type -> Type -> Type where
   MkCover ::
     forall name platform names freePins newNames boardName options next.
     ( KnownSymbol name,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names,
       KnownSymbol (PlatformToSymbol platform),
       options ~ PlatformToOptions Cover platform,
@@ -880,7 +880,7 @@ data ESPF :: Type -> Type -> Type -> Type where
     ( KnownSymbol name,
       KnownNat pin,
       AssertPinIsAvailable pin freePins,
-      AssertNameIsNotUsed name names,
+      AssertNameIsAvailable name names,
       newNames ~ Insert name names,
       newFreePins ~ Remove pin freePins
     ) =>
@@ -963,7 +963,7 @@ switch ::
     newBoard ~ Board boardName newNames freePins,
     KnownSymbol name,
     KnownNat pin,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     AssertPinIsAvailable pin freePins,
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins,
@@ -977,7 +977,7 @@ binarySensor ::
   forall name platform pin names freePins newNames newFreePins options boardName.
   ( KnownSymbol name,
     KnownNat pin,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     AssertPinIsAvailable pin freePins,
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins,
@@ -1001,7 +1001,7 @@ script ::
   ( board ~ Board boardName names freePins,
     newBoard ~ Board boardName newNames freePins,
     KnownSymbol name,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
   ESPAction -> ESPM board newBoard (Script name)
@@ -1010,7 +1010,7 @@ script actions = iliftFree $ MkScript @name actions Script
 light ::
   forall name platform names freePins newNames options platformSymbol boardName.
   ( KnownSymbol name,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names,
     platformSymbol ~ PlatformToSymbol platform,
     KnownSymbol platformSymbol,
@@ -1032,7 +1032,7 @@ sensor ::
     newBoard ~ Board boardName newNames newFreePins,
     KnownSymbol name,
     KnownNat pin,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     AssertPinIsAvailable pin freePins,
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins,
@@ -1048,7 +1048,7 @@ output ::
   ( KnownSymbol name,
     KnownNat pin,
     AssertPinIsAvailable pin freePins,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins,
     KnownSymbol (PlatformToSymbol platform),
@@ -1065,7 +1065,7 @@ output opts = iliftFree (MkOutput @name @platform @pin opts Output)
 cover ::
   forall name platform names freePins newNames boardName options.
   ( KnownSymbol name,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names,
     KnownSymbol (PlatformToSymbol platform),
     options ~ PlatformToOptions Cover platform,
@@ -1083,7 +1083,7 @@ button ::
   ( KnownSymbol name,
     KnownNat pin,
     AssertPinIsAvailable pin freePins,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names,
     newFreePins ~ Remove pin freePins
   ) =>
@@ -1097,7 +1097,7 @@ button opts = iliftFree (MkButton @name @pin opts ())
 number ::
   forall name names freePins newNames boardName.
   ( KnownSymbol name,
-    AssertNameIsNotUsed name names,
+    AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
   NumberOptions ->
