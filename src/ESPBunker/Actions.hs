@@ -8,6 +8,7 @@ module ESPBunker.Actions where
 import Control.Monad.Indexed (IxFunctor (imap), ireturn)
 import Control.Monad.Indexed.Free (IxFree (..), iliftFree)
 import Data.Aeson
+import Data.Aeson.Key (Key)
 import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
 import ESPBunker.Components

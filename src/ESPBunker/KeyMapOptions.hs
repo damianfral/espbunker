@@ -10,9 +10,10 @@ import Control.Monad.Indexed.Free (IxFree (..))
 import Data.Aeson
 import Data.Aeson.KeyMap (KeyMap)
 import Data.Aeson.KeyMap qualified as KM
+import Data.ByteString.Base64 qualified as B64
 import Data.Proxy
 import ESPBunker.Actions (ESPAction, interpretAction)
-import ESPBunker.Components (ColorMode)
+import ESPBunker.Components (ColorMode, Credentials (..), EncryptionKey (..))
 import ESPBunker.DeviceClass (DeviceClass)
 import ESPBunker.Options
 import GHC.TypeLits (symbolVal)
@@ -22,18 +23,45 @@ import Relude hiding (State, natVal, return)
 
 class KeyMapOptions a where toKeyMap :: a -> KeyMap Value
 
+mapAction :: Text -> ESPAction -> Maybe (Key, Value)
+mapAction key action = case action of
+  Pure _ -> Nothing
+  Free _ ->
+    Just (fromString $ toString key, Array $ interpretAction action)
+
+mapMilliseconds :: Text -> Maybe Int -> Maybe (Key, Value)
+mapMilliseconds key val = do
+  ms <- val
+  Just (fromString $ toString key, String $ show ms <> "ms")
+
+nonEmptyOption :: (ToJSON a) => Text -> [a] -> Maybe (Key, Value)
+nonEmptyOption key values = do
+  guard $ not $ null values
+  let key' = fromString $ toString key
+  Just $ key' .= values
+
 instance KeyMapOptions DeviceClass where
   toKeyMap deviceClass = KM.singleton "device_class" $ toJSON deviceClass
+
+instance KeyMapOptions OnBootAction where
+  toKeyMap OnBootAction {..} =
+    KM.fromList
+      $ catMaybes
+        [ onBootPriority <&> \priority -> "priority" .= priority,
+          Just $ "then" .= interpretAction onBootAction
+        ]
+
+instance KeyMapOptions ESPHomeOptions where
+  toKeyMap ESPHomeOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ espHomeOnBoot <&> \onBoot -> "on_boot" .= Object (toKeyMap onBoot)
+        ]
 
 instance KeyMapOptions BinarySensorOptions where
   toKeyMap BinarySensorOptions {..} =
     fromList (catMaybes actionOptions) <> fromList (catMaybes extraOptions)
     where
-      mapAction :: Text -> ESPAction -> Maybe (Key, Value)
-      mapAction key action = case action of
-        Pure _ -> Nothing
-        Free _ ->
-          Just (fromString $ toString key, Array $ interpretAction action)
       actionOptions =
         [ mapAction "on_press" onPress,
           mapAction "on_release" onRelease,
@@ -119,15 +147,129 @@ instance KeyMapOptions SensorADCOptions where
   toKeyMap (SensorADCOptions attenuation) =
     KM.fromList $ catMaybes [("attenuation",) . toJSON <$> attenuation]
 
+instance KeyMapOptions NumberOptions where
+  toKeyMap NumberOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ ("min_value",) . toJSON <$> numberMin,
+          ("max_value",) . toJSON <$> numberMax,
+          ("step",) . toJSON <$> numberStep,
+          ("unit_of_measurement",) . toJSON <$> numberUnit,
+          numberDeviceClass <&> \dc -> "device_class" .= dc,
+          numberIcon <&> \icon -> "icon" .= icon,
+          numberEntityCategory <&> \category -> "entity_category" .= category,
+          numberInternal <&> \internal -> "internal" .= internal,
+          numberMode <&> \mode -> "mode" .= mode,
+          numberOptimistic <&> \optimistic -> "optimistic" .= optimistic
+        ]
+
+instance KeyMapOptions SelectOptions where
+  toKeyMap SelectOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ nonEmptyOption "options" selectOptions,
+          selectInitialOption <&> \initial -> "initial_option" .= initial,
+          selectDeviceClass <&> \dc -> "device_class" .= dc,
+          selectIcon <&> \icon -> "icon" .= icon,
+          selectEntityCategory <&> \category -> "entity_category" .= category,
+          selectInternal <&> \internal -> "internal" .= internal,
+          selectMode <&> \mode -> "mode" .= mode,
+          selectOptimistic <&> \optimistic -> "optimistic" .= optimistic
+        ]
+
+instance KeyMapOptions SensorOptions where
+  toKeyMap SensorOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ Just $ "unit_of_measurement" .= sensorUnit,
+          sensorAccuracy <&> \accuracy -> "accuracy_decimals" .= accuracy,
+          mapMilliseconds "update_interval" sensorIntervalMs,
+          sensorStateClass <&> \stateClass -> "state_class" .= stateClass,
+          sensorDeviceClass <&> \dc -> "device_class" .= dc,
+          sensorIcon <&> \icon -> "icon" .= icon,
+          sensorEntityCategory <&> \category -> "entity_category" .= category,
+          sensorInternal <&> \internal -> "internal" .= internal
+        ]
+
+instance KeyMapOptions SwitchOptions where
+  toKeyMap SwitchOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ ("restore_mode",) . toJSON <$> switchRestoreMode,
+          switchDeviceClass <&> \dc -> "device_class" .= dc,
+          switchIcon <&> \icon -> "icon" .= icon,
+          switchEntityCategory <&> \category -> "entity_category" .= category,
+          switchInternal <&> \internal -> "internal" .= internal,
+          nonEmptyOption "interlock" switchInterlock,
+          mapMilliseconds "interlock_wait_time" switchInterlockWaitTime,
+          switchOptimistic <&> \optimistic -> "optimistic" .= optimistic,
+          switchInverted <&> \inverted -> "inverted" .= inverted,
+          mapAction "on_turn_on" onTurnOn,
+          mapAction "on_turn_off" onTurnOff
+        ]
+
+instance KeyMapOptions I2COptions where
+  toKeyMap I2COptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ Just $ "sda" .= i2cSda,
+          Just $ "scl" .= i2cScl,
+          i2cScan <&> \scan -> "scan" .= scan,
+          i2cFrequency <&> \freq -> "frequency" .= freq
+        ]
+
+instance KeyMapOptions PN532I2COptions where
+  toKeyMap PN532I2COptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ pn532I2CId <&> \i2cId -> "i2c_id" .= i2cId,
+          pn532I2COnTag >>= mapAction "on_tag"
+        ]
+
+instance KeyMapOptions IntervalOptions where
+  toKeyMap IntervalOptions {..} =
+    KM.fromList
+      [ "interval" .= fromMaybe "10s" intervalInterval,
+        "then" .= interpretAction intervalAction
+      ]
+
+instance KeyMapOptions WebServerOptions where
+  toKeyMap (WebServerOptions port) = ["port" .= port]
+
+instance KeyMapOptions Credentials where
+  toKeyMap Credentials {..} = ["ssid" .= ssid, "password" .= password]
+
+instance KeyMapOptions WifiOptions where
+  toKeyMap WifiOptions {..} =
+    KM.fromList
+      $ catMaybes
+        [ nonEmptyOption "networks" (Object . toKeyMap <$> wifiNetworks),
+          wifiAP <&> \credentials -> "ap" .= Object (toKeyMap credentials)
+        ]
+
+instance KeyMapOptions OTAOptions where
+  toKeyMap (OTAOptions platform password) =
+    ["platform" .= platform, "password" .= password]
+
+instance KeyMapOptions APIOptions where
+  toKeyMap (APIOptions encryptionKey) =
+    [ "encryption"
+        .= object
+          [ "key"
+              .= decodeUtf8 @Text
+                (B64.encode $ getEncryptionKey encryptionKey)
+          ]
+    ]
+
 instance KeyMapOptions LightOptions where
   toKeyMap LightOptions {..} =
     KM.fromList
       $ catMaybes
-        [ mapIntOption "transition_length" lightTransitionLength,
+        [ mapMilliseconds "transition_length" lightTransitionLength,
           mapEffectsOption "effects" lightEffects,
           mapColorMode "color_mode" lightColorMode,
           mapDoubleOption "gamma_correct" lightGammaCorrect,
-          mapIntOption "default_transition_length" lightDefaultTransitionLength,
+          mapMilliseconds "default_transition_length" lightDefaultTransitionLength,
           lightDeviceClass <&> \dc -> "device_class" .= dc,
           lightIcon <&> \icon -> "icon" .= icon,
           lightEntityCategory <&> \category -> "entity_category" .= category,
@@ -135,11 +277,6 @@ instance KeyMapOptions LightOptions where
           lightRestoreMode <&> \restore -> "restore_mode" .= restore
         ]
     where
-      mapIntOption :: Text -> Maybe Int -> Maybe (Key, Value)
-      mapIntOption key val = do
-        transitionL <- val
-        Just (fromString $ toString key, String $ show transitionL <> "ms")
-
       mapDoubleOption :: Text -> Maybe Double -> Maybe (Key, Value)
       mapDoubleOption key val = do
         doubleVal <- val
