@@ -172,23 +172,23 @@ interpretAction (Pure _) = empty
 interpretAction (Free espf) = case espf of
   ToggleSwitch @name _switch next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "switch.toggle" .= n
+        option = Object $ "switch.toggle" .= snakeCase n
      in [option] <> interpretAction next
   TurnOnSwitch @name _switch next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "switch.turn_on" .= n
+        option = Object $ "switch.turn_on" .= snakeCase n
      in [option] <> interpretAction next
   TurnOffSwitch @name _switch next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "switch.turn_off" .= n
+        option = Object $ "switch.turn_off" .= snakeCase n
      in [option] <> interpretAction next
   TurnOnLight @name _light next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "light.turn_on" .= n
+        option = Object $ "light.turn_on" .= snakeCase n
      in [option] <> interpretAction next
   TurnOffLight @name _light next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "light.turn_off" .= n
+        option = Object $ "light.turn_off" .= snakeCase n
      in [option] <> interpretAction next
   LogMsg msg next ->
     let option = Object $ "logger.log" .= msg
@@ -204,7 +204,7 @@ interpretAction (Free espf) = case espf of
      in [option] <> interpretAction next
   IfSwitchIsOn @name _switch thenAction elseAction next ->
     let n = symbolVal (Proxy @name)
-        conditionPart = object ["switch.is_on" .= n]
+        conditionPart = object ["switch.is_on" .= snakeCase n]
         thenPart = interpretAction thenAction
         elseMaybe = case elseAction of
           Nothing -> []
@@ -220,7 +220,7 @@ interpretAction (Free espf) = case espf of
      in [ifAction] <> interpretAction next
   IfSwitchIsOff @name _switch thenAction elseAction next ->
     let n = symbolVal (Proxy @name)
-        conditionPart = object ["switch.is_off" .= n]
+        conditionPart = object ["switch.is_off" .= snakeCase n]
         thenPart = interpretAction thenAction
         elseMaybe = case elseAction of
           Nothing -> []
@@ -240,46 +240,47 @@ interpretAction (Free espf) = case espf of
      in [option] <> interpretAction next
   SetNumber @name _number val next ->
     let n = symbolVal (Proxy @name)
-        yamlNode = Object $ "number.set" .= object ["id" .= n, "value" .= val]
+        yamlNode =
+          Object $ "number.set" .= object ["id" .= snakeCase n, "value" .= val]
      in [yamlNode] <> interpretAction next
   IncrementNumber @name _number _val next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "number.increment" .= n
+        option = Object $ "number.increment" .= snakeCase n
      in [option] <> interpretAction next
   DecrementNumber @name _number _val next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "number.decrement" .= n
+        option = Object $ "number.decrement" .= snakeCase n
      in [option] <> interpretAction next
   SetOutputValue @name _output val next ->
     let n = symbolVal (Proxy @name)
-        setLevel = object ["id" .= n, "level" .= val]
+        setLevel = object ["id" .= snakeCase n, "level" .= val]
         yamlNode = Object $ "output.set_level" .= setLevel
      in [yamlNode] <> interpretAction next
   TurnOnOutput @name _output next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "output.turn_on" .= n
+        option = Object $ "output.turn_on" .= snakeCase n
      in [option] <> interpretAction next
   TurnOffOutput @name _output next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "output.turn_off" .= n
+        option = Object $ "output.turn_off" .= snakeCase n
      in [option] <> interpretAction next
   OpenCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "cover.open" .= n
+        option = Object $ "cover.open" .= snakeCase n
      in [option] <> interpretAction next
   CloseCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "cover.close" .= n
+        option = Object $ "cover.close" .= snakeCase n
      in [option] <> interpretAction next
   StopCover @name _cover next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "cover.stop" .= n
+        option = Object $ "cover.stop" .= snakeCase n
      in [option] <> interpretAction next
   SampleSensor @name _sensor next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "component.update" .= n
+        option = Object $ "component.update" .= snakeCase n
      in [option] <> interpretAction next
   SampleTextSensor @name _sensor next ->
     let n = symbolVal (Proxy @name)
-        option = Object $ "component.update" .= n
+        option = Object $ "component.update" .= snakeCase n
      in [option] <> interpretAction next
