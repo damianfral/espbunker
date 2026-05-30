@@ -37,7 +37,10 @@ library:
 executables:
   espbunker:
     main: Main.hs
-    source-dirs: ./src/
+    source-dirs: app/
+    dependencies:
+      - espbunker
+      - relude
     ghc-options:
       - -rtsopts
       - -threaded
