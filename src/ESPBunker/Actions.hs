@@ -206,10 +206,7 @@ interpretAction (Free espf) = case espf of
     let n = symbolVal (Proxy @name)
         conditionPart = object ["switch.is_on" .= snakeCase n]
         thenPart = interpretAction thenAction
-        elseMaybe = case elseAction of
-          Nothing -> []
-          Just ea ->
-            ["else" .= interpretAction ea | not $ null (interpretAction ea)]
+        elseMaybe = maybe [] (actionBranch "else") elseAction
         ifObject =
           object
             $ [ "condition" .= conditionPart,
@@ -222,10 +219,7 @@ interpretAction (Free espf) = case espf of
     let n = symbolVal (Proxy @name)
         conditionPart = object ["switch.is_off" .= snakeCase n]
         thenPart = interpretAction thenAction
-        elseMaybe = case elseAction of
-          Nothing -> []
-          Just ea ->
-            ["else" .= interpretAction ea | not $ null (interpretAction ea)]
+        elseMaybe = maybe [] (actionBranch "else") elseAction
         ifObject =
           object
             $ [ "condition" .= conditionPart,
@@ -284,3 +278,8 @@ interpretAction (Free espf) = case espf of
     let n = symbolVal (Proxy @name)
         option = Object $ "component.update" .= snakeCase n
      in [option] <> interpretAction next
+
+actionBranch :: Key -> ESPAction -> [(Key, Value)]
+actionBranch key action =
+  let interpreted = interpretAction action
+   in [key .= interpreted | not $ null interpreted]
