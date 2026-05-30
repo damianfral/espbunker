@@ -2,8 +2,8 @@
 
 module Main where
 
+import ESPBunker
 import ESPBunker.Examples
-import ESPBunker.Language
 import Relude
 
 main :: IO ()

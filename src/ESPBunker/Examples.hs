@@ -1,22 +1,17 @@
+{-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE GADTs #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE PartialTypeSignatures #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE RebindableSyntax #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# OPTIONS_GHC -Wno-partial-type-signatures #-}
 
 module ESPBunker.Examples where
 
 import Data.Default
+import ESPBunker
 import ESPBunker.DeviceClass (DeviceClass (..))
-import ESPBunker.Language
 import GHC.TypeLits (KnownSymbol)
 import Relude hiding ((>>=))
 

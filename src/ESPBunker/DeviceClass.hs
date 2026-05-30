@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module ESPBunker.DeviceClass where

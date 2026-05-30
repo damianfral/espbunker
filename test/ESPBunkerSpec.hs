@@ -5,8 +5,8 @@
 
 module ESPBunkerSpec where
 
+import ESPBunker (generateYAML)
 import ESPBunker.Examples
-import ESPBunker.Language (generateYAML)
 import Path
 import Relude
 import System.Process.Typed (ExitCode (ExitSuccess), runProcess)
