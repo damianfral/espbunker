@@ -27,7 +27,7 @@ import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
 import Data.Aeson.KeyMap (KeyMap, insert, insertWith)
 import qualified Data.Aeson.KeyMap as KM
-import qualified Data.ByteString.Base64 as Base64
+import qualified Data.ByteString.Base64 as B64
 import Data.Default
 import Data.Type.Bool (Not)
 import qualified Data.Vector as V
@@ -509,11 +509,14 @@ data OTAOptions = OTAOptions {otaPlatform :: Text, otaPassword :: Password}
 
 data API = API
 
-newtype Base64 = Base64 {unBase64 :: ByteString}
+-- | Raw key material for the ESPHome API encryption (AES-256).
+-- Provide exactly 32 ASCII characters (32 bytes); the interpreter
+-- base64-encodes this to a 44-character key in the generated YAML.
+newtype EncryptionKey = EncryptionKey {getEncryptionKey :: ByteString}
   deriving (Generic)
   deriving newtype (IsString)
 
-newtype APIOptions = APIOptions {apiEncryptionKey :: Base64}
+newtype APIOptions = APIOptions {apiEncryptionKey :: EncryptionKey}
   deriving (Generic)
 
 data WebServer = WebServer
@@ -1193,7 +1196,7 @@ addBootAction :: Maybe Int -> ESPAction -> ESPHomeOptions -> ESPHomeOptions
 addBootAction mbPriority action opts =
   opts {espHomeOnBoot = Just $ OnBootAction mbPriority action}
 
-api :: Base64 -> ESPM board board API
+api :: EncryptionKey -> ESPM board board API
 api key = iliftFree $ MkAPI (APIOptions key) API
 
 ota :: [OTAOptions] -> ESPM board board OTA
@@ -1634,7 +1637,7 @@ interpretESP (Free espf) =
                   .= object
                     [ "key"
                         .= decodeUtf8 @Text
-                          (Base64.encode $ unBase64 encryptionKey)
+                          (B64.encode $ getEncryptionKey encryptionKey)
                     ]
               ]
        in apiNode : interpretESP next

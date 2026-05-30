@@ -319,7 +319,7 @@ christmasExample = do
       $ def
       & addNetwork "GL-AR300M-b66" "!secret password-GL-AR300M-b66"
       & ap "christmas-hotspot" "!secret password-ap"
-  _ <- api $ Base64 "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
+  _ <- api $ EncryptionKey "0123456789abcdef0123456789abcdef"
   _ <- ota [OTAOptions "esphome" "!secret password-ota"]
   _ <- webServer 80
 
@@ -549,7 +549,7 @@ apiExample = do
   _ <- esphome @"api-test" def
   _ <- logger
   _ <- wifi $ def & addNetwork "ssid" "password"
-  _ <- api $ Base64 "12345678901234567890123456789012"
+  _ <- api $ EncryptionKey "0123456789abcdef0123456789abcdef"
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
   done
