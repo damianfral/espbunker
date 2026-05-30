@@ -1700,17 +1700,19 @@ instance KeyMapOptions DeviceClass where
 
 instance KeyMapOptions BinarySensorOptions where
   toKeyMap BinarySensorOptions {..} =
-    [ mapAction "on_press" onPress,
-      mapAction "on_release" onRelease,
-      mapAction "on_click" onClick,
-      mapAction "on_double_click" onDoubleClick,
-      mapAction "on_multi_click" onLongPress
-    ]
-      <> fromList (catMaybes extraOptions)
+    fromList (catMaybes actionOptions) <> fromList (catMaybes extraOptions)
     where
-      mapAction :: Text -> ESPAction -> (Key, Value)
-      mapAction key action =
-        (fromString $ toString key, Array $ interpretAction action)
+      mapAction :: Text -> ESPAction -> Maybe (Key, Value)
+      mapAction key action = case action of
+        Pure _ -> Nothing
+        Free _ -> Just (fromString $ toString key, Array $ interpretAction action)
+      actionOptions =
+        [ mapAction "on_press" onPress,
+          mapAction "on_release" onRelease,
+          mapAction "on_click" onClick,
+          mapAction "on_double_click" onDoubleClick,
+          mapAction "on_multi_click" onLongPress
+        ]
       extraOptions =
         [ binarySensorDeviceClass <&> \dc -> "device_class" .= dc,
           binarySensorIcon <&> \icon -> "icon" .= icon,
