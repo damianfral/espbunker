@@ -343,16 +343,17 @@ data Select (name :: Symbol) = Select
 
 data SelectOptions = SelectOptions
   { selectOptions :: [Text],
-    selectInitial :: Maybe Text,
+    selectInitialOption :: Maybe Text,
     selectDeviceClass :: Maybe DeviceClass,
     selectIcon :: Maybe Text,
     selectEntityCategory :: Maybe Text,
     selectInternal :: Maybe Bool,
-    selectMode :: Maybe Text -- "auto", "box", "dropdown"
+    selectMode :: Maybe Text, -- "auto", "box", "dropdown"
+    selectOptimistic :: Maybe Bool
   }
 
 instance Default SelectOptions where
-  def = SelectOptions [] Nothing Nothing Nothing Nothing Nothing Nothing
+  def = SelectOptions [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 -- | Sensor https://esphome.io/components/sensor/
 data Sensor (name :: Symbol) = Sensor
@@ -871,6 +872,15 @@ data ESPF :: Type -> Type -> Type -> Type where
       newNames ~ Insert name names
     ) =>
     NumberOptions -> next -> ESPF board newBoard next
+  MkSelect ::
+    forall name names freePins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins,
+      newBoard ~ Board boardName newNames freePins,
+      KnownSymbol name,
+      AssertNameIsAvailable name names,
+      newNames ~ Insert name names
+    ) =>
+    SelectOptions -> next -> ESPF board newBoard next
   MkOutput ::
     forall
       name
@@ -959,6 +969,7 @@ instance IxFunctor ESPF where
   imap f (MkLight @name @platform options platformOptions next) =
     MkLight @name @platform options platformOptions $ f next
   imap f (MkNumber @name options next) = MkNumber @name options $ f next
+  imap f (MkSelect @name opts next) = MkSelect @name opts $ f next
   imap f (MkOutput @name @platform @pin opts next) =
     MkOutput @name @platform @pin opts $ f next
   imap f (MkScript @name options next) = MkScript @name options $ f next
@@ -1168,6 +1179,19 @@ number ::
     (Board boardName newNames freePins)
     (NumberComponent name)
 number opts = iliftFree $ MkNumber @name opts NumberComponent
+
+select ::
+  forall name names freePins newNames boardName.
+  ( KnownSymbol name,
+    AssertNameIsAvailable name names,
+    newNames ~ Insert name names
+  ) =>
+  SelectOptions ->
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames freePins)
+    (Select name)
+select opts = iliftFree $ MkSelect @name opts Select
 
 textSensor ::
   forall name names freePins newNames boardName.
@@ -1512,6 +1536,30 @@ interpretESP (Free espf) =
                   ("optimistic",) . toJSON <$> numberOptimistic options
                 ]
           yamlNode = Node "number" [opts]
+       in yamlNode : interpretESP next
+    MkSelect @name options next ->
+      let n = symbolVal (Proxy @name)
+          opts :: KeyMap Value =
+            fromList
+              $ [ ("platform", "template"),
+                  "name" .= n,
+                  "id" .= snakeCase n
+                ]
+              <> catMaybes
+                [ ("options",)
+                    . toJSON
+                    <$> if null (selectOptions options)
+                      then Nothing
+                      else Just (selectOptions options),
+                  ("initial_option",) . toJSON <$> selectInitialOption options,
+                  ("device_class",) . toJSON <$> selectDeviceClass options,
+                  ("icon",) . toJSON <$> selectIcon options,
+                  ("entity_category",) . toJSON <$> selectEntityCategory options,
+                  ("internal",) . toJSON <$> selectInternal options,
+                  ("mode",) . toJSON <$> selectMode options,
+                  ("optimistic",) . toJSON <$> selectOptimistic options
+                ]
+          yamlNode = Node "select" [opts]
        in yamlNode : interpretESP next
     MkSensor @name @platform @pin options platformOptions next ->
       let n = symbolVal (Proxy @name)

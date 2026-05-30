@@ -305,6 +305,20 @@ numberWithOptionsExample = do
         }
   done
 
+selectExample :: ESPM ESP32C3 _ ()
+selectExample = do
+  _ <- commonSetup
+  _ <-
+    select @"mode_selector"
+      def
+        { selectOptions = ["eco", "comfort", "boost"],
+          selectInitialOption = Just "eco",
+          selectIcon = Just "mdi:thermostat",
+          selectEntityCategory = Just "config",
+          selectOptimistic = Just True
+        }
+  done
+
 -- Christmas lights and NFC example
 christmasExample :: ESPM ESP32C3 _ ()
 christmasExample = do
@@ -604,6 +618,7 @@ examples =
     ("switch with options", SomeESPM switchWithOptionsExample),
     ("cover with options", SomeESPM coverWithOptionsExample),
     ("number with options", SomeESPM numberWithOptionsExample),
+    ("select", SomeESPM selectExample),
     ("christmas example", SomeESPM christmasExample),
     ("priority example", SomeESPM priorityExample),
     ("button", SomeESPM buttonExample),
