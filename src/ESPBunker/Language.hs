@@ -1205,14 +1205,26 @@ ota opts = iliftFree $ MkOTA opts OTA
 webServer :: Int -> ESPM board board WebServer
 webServer port = iliftFree $ MkWebServer (WebServerOptions port) WebServer
 
-i2c :: I2COptions -> ESPM board board (I2CBus "i2c_1")
-i2c opts = iliftFree $ MkI2C @"i2c_1" opts I2CBus
+i2c ::
+  forall name board.
+  (KnownSymbol name) =>
+  I2COptions ->
+  ESPM board board (I2CBus name)
+i2c opts = iliftFree $ MkI2C @name opts I2CBus
 
-pn532i2c :: PN532I2COptions -> ESPM board board (PN532I2C "pn532")
-pn532i2c opts = iliftFree $ MkPN532I2C @"pn532" opts PN532I2C
+pn532i2c ::
+  forall name board.
+  (KnownSymbol name) =>
+  PN532I2COptions ->
+  ESPM board board (PN532I2C name)
+pn532i2c opts = iliftFree $ MkPN532I2C @name opts PN532I2C
 
-interval :: IntervalOptions -> ESPM board board (Interval "interval_1")
-interval opts = iliftFree $ MkInterval @"interval_1" opts Interval
+interval ::
+  forall name board.
+  (KnownSymbol name) =>
+  IntervalOptions ->
+  ESPM board board (Interval name)
+interval opts = iliftFree $ MkInterval @name opts Interval
 
 --------------------------------------------------------------------------------
 

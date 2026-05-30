@@ -332,7 +332,7 @@ christmasExample = do
   relay7 <- switch @"relay_7" @GPIO @20 def {switchInverted = Just True}
 
   -- I2C configuration for NFC
-  _ <- i2c $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
+  _ <- i2c @"nfc_i2c" $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
 
   -- Placeholder: PN532 I2C component (I2C is a configuration component without a return value)
   -- Note: Since I don't have an action to reference the NFC reader directly, I'll just set up the I2C
@@ -501,7 +501,7 @@ christmasExample = do
 
   -- Interval component (just log to demonstrate the functionality)
   _ <-
-    interval
+    interval @"keepalive"
       $ def
         { intervalId = Nothing, -- Use default ID
           intervalInterval = Just "10s",
