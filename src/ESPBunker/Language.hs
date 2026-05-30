@@ -357,6 +357,9 @@ instance Default SelectOptions where
 -- | Sensor https://esphome.io/components/sensor/
 data Sensor (name :: Symbol) = Sensor
 
+-- | Text Sensor https://esphome.io/components/text_sensor/
+data TextSensor (name :: Symbol) = TextSensor
+
 data StateClass
   = STATE_CLASS_MEASUREMENT
   | STATE_CLASS_TOTAL_INCREASING
@@ -559,7 +562,7 @@ data ESPActionF f g next where
     Sensor name -> next -> ESPActionF f g next
   SampleTextSensor ::
     (KnownSymbol name) =>
-    Sensor name -> next -> ESPActionF f g next
+    TextSensor name -> next -> ESPActionF f g next
   SetNumber ::
     (KnownSymbol name) =>
     NumberComponent name -> Double -> next -> ESPActionF f g next
@@ -1162,6 +1165,18 @@ number ::
     (Board boardName newNames freePins)
     (NumberComponent name)
 number opts = iliftFree $ MkNumber @name opts NumberComponent
+
+textSensor ::
+  forall name names freePins newNames boardName.
+  ( KnownSymbol name,
+    AssertNameIsAvailable name names,
+    newNames ~ Insert name names
+  ) =>
+  ESPM
+    (Board boardName names freePins)
+    (Board boardName newNames freePins)
+    (TextSensor name)
+textSensor = iliftFree $ MkTextSensor @name TextSensor
 
 wifi :: WifiOptions -> ESPM board board Wifi
 wifi opts = iliftFree $ MkWifi opts Wifi
