@@ -55,8 +55,7 @@ instance KeyMapOptions ESPHomeOptions where
   toKeyMap ESPHomeOptions {..} =
     KM.fromList
       $ catMaybes
-        [ espHomeOnBoot <&> \onBoot -> "on_boot" .= Object (toKeyMap onBoot)
-        ]
+        [espHomeOnBoot <&> \onBoot -> "on_boot" .= Object (toKeyMap onBoot)]
 
 instance KeyMapOptions BinarySensorOptions where
   toKeyMap BinarySensorOptions {..} =
@@ -252,14 +251,8 @@ instance KeyMapOptions OTAOptions where
     ["platform" .= platform, "password" .= password]
 
 instance KeyMapOptions APIOptions where
-  toKeyMap (APIOptions encryptionKey) =
-    [ "encryption"
-        .= object
-          [ "key"
-              .= decodeUtf8 @Text
-                (B64.encode $ getEncryptionKey encryptionKey)
-          ]
-    ]
+  toKeyMap (APIOptions (EncryptionKey key)) =
+    ["encryption" .= object ["key" .= decodeUtf8 @Text (B64.encode key)]]
 
 instance KeyMapOptions LightOptions where
   toKeyMap LightOptions {..} =

@@ -19,8 +19,6 @@ import Relude hiding (State, natVal, return, (>>=))
 
 --------------------------------------------------------------------------------
 
---------------------------------------------------------------------------------
-
 type PlatformToOptions :: forall k. k -> Platform -> Type
 type family PlatformToOptions component platform where
   PlatformToOptions BinarySensor GPIO = Maybe DeviceClass
@@ -420,7 +418,8 @@ sensor ::
     KnownSymbol (PlatformToSymbol platform)
   ) =>
   SensorOptions -> options -> ESPM board newBoard (Sensor name)
-sensor opts platformOpts = iliftFree (MkSensor @name @platform @pin opts platformOpts Sensor)
+sensor opts platformOpts =
+  iliftFree $ MkSensor @name @platform @pin opts platformOpts Sensor
 
 output ::
   forall name platform pin names freePins newNames newFreePins boardName options.

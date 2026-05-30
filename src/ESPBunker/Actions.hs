@@ -8,7 +8,6 @@ module ESPBunker.Actions where
 import Control.Monad.Indexed (IxFunctor (imap), ireturn)
 import Control.Monad.Indexed.Free (IxFree (..), iliftFree)
 import Data.Aeson
-import Data.Aeson.Key (Key)
 import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
 import ESPBunker.Components
@@ -210,9 +209,7 @@ interpretAction (Free espf) = case espf of
         elseMaybe = maybe [] (actionBranch "else") elseAction
         ifObject =
           object
-            $ [ "condition" .= conditionPart,
-                "then" .= thenPart
-              ]
+            $ ["condition" .= conditionPart, "then" .= thenPart]
             <> elseMaybe
         ifAction = object ["if" .= ifObject]
      in [ifAction] <> interpretAction next
@@ -223,10 +220,8 @@ interpretAction (Free espf) = case espf of
         elseMaybe = maybe [] (actionBranch "else") elseAction
         ifObject =
           object
-            $ [ "condition" .= conditionPart,
-                "then" .= thenPart
-              ]
-            ++ elseMaybe
+            $ ["condition" .= conditionPart, "then" .= thenPart]
+            <> elseMaybe
         ifAction = object ["if" .= ifObject]
      in [ifAction] <> interpretAction next
   RunScript @name _script next ->
