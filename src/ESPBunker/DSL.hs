@@ -121,7 +121,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       newBoard
       next.
     ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins,
+      newBoard ~ Board boardName newNames newFreePins,
       KnownSymbol name,
       KnownNat pin,
       AssertNameIsAvailable name names,
@@ -328,7 +328,7 @@ switch ::
     board
     newBoard.
   ( board ~ Board boardName names freePins,
-    newBoard ~ Board boardName newNames freePins,
+    newBoard ~ Board boardName newNames newFreePins,
     KnownSymbol name,
     KnownNat pin,
     AssertNameIsAvailable name names,
