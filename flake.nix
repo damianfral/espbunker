@@ -1,5 +1,5 @@
 {
-  description = "CLI tool to list your repositories";
+  description = "Haskell DSL for generating ESPHome YAML configurations";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
