@@ -1384,16 +1384,20 @@ interpretAction (Free espf) = case espf of
 
 --------------------------------------------------------------------------------
 
-data Node = SingleNode Key (KeyMap Value) | Node Key [KeyMap Value]
+-- | A single YAML key-value node.
+-- 'NodeObject' renders as @key: { ... }@ (a single mapping).
+-- 'NodeArray' renders as @key: [{ ... }, ...]@ (an array of mappings).
+data Node
+  = NodeObject Key (KeyMap Value)
+  | NodeArray Key (NonEmpty (KeyMap Value))
 
 nodesToKeyMap :: [Node] -> KeyMap Value
 nodesToKeyMap = foldl' merge mempty
   where
     merge :: KeyMap Value -> Node -> KeyMap Value
-    merge acc (SingleNode name value) = insert name (Object value) acc
-    merge acc (Node name values) = insertWith deepMerge name newArray acc
-      where
-        newArray = toJSON $ Object <$> values
+    merge acc (NodeObject name value) = insert name (Object value) acc
+    merge acc (NodeArray name values) =
+      insertWith deepMerge name (toJSON $ Object <$> values) acc
 
 deepMerge :: Value -> Value -> Value
 deepMerge (Object km1) (Object km2) = Object $ KM.unionWith deepMerge km1 km2
@@ -1417,9 +1421,9 @@ interpretESP (Free espf) =
                 let priorityField =
                       maybe [] (\p -> ["priority" .= p]) mbPriority
                     actionField = ["then" .= interpretAction action]
-                 in ["on_boot" .= object (fromList $ priorityField <> actionField)]
+                 in ["on_boot" .= object (priorityField <> actionField)]
           espHomeOpts = basicOpts <> onBootPart
-          espHomeNode = SingleNode "esphome" espHomeOpts
+          espHomeNode = NodeObject "esphome" espHomeOpts
        in espHomeNode : interpretESP next
     MkBoard next ->
       let boardName = symbolVal (Proxy @boardName)
@@ -1431,62 +1435,57 @@ interpretESP (Free espf) =
                     ("version", toJSON Latest)
                   ]
             ]
-          yamlNode = SingleNode "esp32" boardSubnode
+          yamlNode = NodeObject "esp32" boardSubnode
        in yamlNode : interpretESP next
     MkLogger next ->
-      let espHomeNode = SingleNode "logger" mempty
+      let espHomeNode = NodeObject "logger" mempty
        in espHomeNode : interpretESP next
     MkSwitch @name @platform @pin opts next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlNode =
-            Node
+            NodeArray
               "switch"
               [ fromList
-                  $ [ "platform" .= platform,
+                  ( [ "platform" .= platform,
                       "pin" .= pinToText @pin,
                       "name" .= n,
                       "id" .= snakeCase n
                     ]
-                  <> catMaybes
-                    [ ("restore_mode",) . toJSON <$> switchRestoreMode opts,
-                      ("device_class",) . toJSON <$> switchDeviceClass opts,
-                      ("icon",) . toJSON <$> switchIcon opts,
-                      ("entity_category",) . toJSON <$> switchEntityCategory opts,
-                      ("internal",) . toJSON <$> switchInternal opts,
-                      ("interlock",)
-                        . toJSON
-                        <$> if null (switchInterlock opts)
-                          then Nothing
-                          else Just (switchInterlock opts),
-                      switchInterlockWaitTime opts <&> \wait ->
-                        ("interlock_wait_time", String $ show wait <> "ms"),
-                      switchInverted opts <&> \inv -> ("inverted", toJSON inv)
-                    ]
+                      <> catMaybes
+                        [ ("restore_mode",) . toJSON <$> switchRestoreMode opts,
+                          ("device_class",) . toJSON <$> switchDeviceClass opts,
+                          ("icon",) . toJSON <$> switchIcon opts,
+                          ("entity_category",) . toJSON <$> switchEntityCategory opts,
+                          ("internal",) . toJSON <$> switchInternal opts,
+                          do
+                            let interlockOpts = switchInterlock opts
+                            guard $ not $ null interlockOpts
+                            Just ("interlock" .= interlockOpts),
+                          switchInterlockWaitTime opts <&> \wait ->
+                            ("interlock_wait_time", String $ show wait <> "ms"),
+                          switchInverted opts <&> \inv -> ("inverted", toJSON inv)
+                        ]
+                  )
               ]
        in yamlNode : interpretESP next
     MkCover @name @platform opts next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlNode =
-            Node
+            NodeArray
               "cover"
-              [ [ "platform" .= platform,
-                  "name" .= n,
-                  "id" .= snakeCase n
-                ]
+              [ ["platform" .= platform, "name" .= n, "id" .= snakeCase n]
                   <> toKeyMap opts
               ]
        in yamlNode : interpretESP next
     MkButton @name @pin options next ->
       let n = symbolVal (Proxy @name)
           buttonNode =
-            Node
+            NodeArray
               "button"
-              [ [ ("platform", "template"),
-                  "name" .= n,
-                  "id" .= snakeCase n
-                ]
+              [ fromList
+                  [("platform", "template"), "name" .= n, "id" .= snakeCase n]
               ]
 
           binarySensorNode =
@@ -1501,13 +1500,13 @@ interpretESP (Free espf) =
                     Pure () -> []
                     Free _ -> ["on_press" .= interpretAction (onPress options)]
                 allOpts = fold @[] [baseOpts, actionOpts, toKeyMap options]
-             in Node "binary_sensor" [allOpts]
+             in NodeArray "binary_sensor" (allOpts :| [])
        in buttonNode : binarySensorNode : interpretESP next
     MkOutput @name @platform @pin _opts next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
           yamlNode =
-            Node
+            NodeArray
               "output"
               [ [ "platform" .= platform,
                   "id" .= snakeCase n,
@@ -1535,7 +1534,7 @@ interpretESP (Free espf) =
                   ("mode",) . toJSON <$> numberMode options,
                   ("optimistic",) . toJSON <$> numberOptimistic options
                 ]
-          yamlNode = Node "number" [opts]
+          yamlNode = NodeArray "number" (opts :| [])
        in yamlNode : interpretESP next
     MkSelect @name options next ->
       let n = symbolVal (Proxy @name)
@@ -1546,11 +1545,9 @@ interpretESP (Free espf) =
                   "id" .= snakeCase n
                 ]
               <> catMaybes
-                [ ("options",)
-                    . toJSON
-                    <$> if null (selectOptions options)
-                      then Nothing
-                      else Just (selectOptions options),
+                [ do
+                    guard $ not $ null $ selectOptions options
+                    Just ("options" .= selectOptions options),
                   ("initial_option",) . toJSON <$> selectInitialOption options,
                   ("device_class",) . toJSON <$> selectDeviceClass options,
                   ("icon",) . toJSON <$> selectIcon options,
@@ -1559,53 +1556,54 @@ interpretESP (Free espf) =
                   ("mode",) . toJSON <$> selectMode options,
                   ("optimistic",) . toJSON <$> selectOptimistic options
                 ]
-          yamlNode = Node "select" [opts]
+          yamlNode = NodeArray "select" (opts :| [])
        in yamlNode : interpretESP next
     MkSensor @name @platform @pin options platformOptions next ->
       let n = symbolVal (Proxy @name)
           platform = symbolVal (Proxy @(PlatformToSymbol platform))
           opts =
-            [ [ "platform" .= platform,
-                "name" .= n,
-                "id" .= snakeCase n,
-                "pin" .= natVal (Proxy @pin),
-                "unit_of_measurement" .= sensorUnit options
-              ]
-                <> fromList
-                  ( catMaybes
-                      [ do
-                          accuracy <- sensorAccuracy options
-                          Just $ "accuracy_decimals" .= accuracy,
-                        do
-                          interv <- sensorIntervalMs options
-                          Just
-                            ("update_interval" .= (show @Text interv <> "ms")),
-                        do
-                          stateClass <- sensorStateClass options
-                          Just $ "state_class" .= stateClass,
-                        do
-                          deviceClass <- sensorDeviceClass options
-                          Just $ "device_class" .= deviceClass,
-                        do
-                          icon <- sensorIcon options
-                          Just $ "icon" .= icon,
-                        do
-                          entityCategory <- sensorEntityCategory options
-                          Just $ "entity_category" .= entityCategory,
-                        sensorInternal options
-                          <&> \internal -> "internal" .= internal
-                      ]
-                  )
-                <> toKeyMap platformOptions
+            [ "platform" .= platform,
+              "name" .= n,
+              "id" .= snakeCase n,
+              "pin" .= natVal (Proxy @pin),
+              "unit_of_measurement" .= sensorUnit options
             ]
-          yamlNode = Node "sensor" opts
+              <> fromList
+                ( catMaybes
+                    [ do
+                        accuracy <- sensorAccuracy options
+                        Just $ "accuracy_decimals" .= accuracy,
+                      do
+                        interv <- sensorIntervalMs options
+                        Just
+                          ("update_interval" .= (show @Text interv <> "ms")),
+                      do
+                        stateClass <- sensorStateClass options
+                        Just $ "state_class" .= stateClass,
+                      do
+                        deviceClass <- sensorDeviceClass options
+                        Just $ "device_class" .= deviceClass,
+                      do
+                        icon <- sensorIcon options
+                        Just $ "icon" .= icon,
+                      do
+                        entityCategory <- sensorEntityCategory options
+                        Just $ "entity_category" .= entityCategory,
+                      sensorInternal options
+                        <&> \internal -> "internal" .= internal
+                    ]
+                )
+              <> toKeyMap platformOptions
+          yamlNode = NodeArray "sensor" (opts :| [])
        in yamlNode : interpretESP next
     MkTextSensor @name next ->
       let n = symbolVal (Proxy @name)
           yamlNode =
-            Node
+            NodeArray
               "text_sensor"
-              [[("platform", "template"), "name" .= n, "id" .= snakeCase n]]
+              [ fromList
+                  [("platform", "template"), "name" .= n, "id" .= snakeCase n]
+              ]
        in yamlNode : interpretESP next
     MkBinarySensor @name @platform @pin options platformOptions next ->
       let n = symbolVal (Proxy @name)
@@ -1628,21 +1626,21 @@ interpretESP (Free espf) =
                         "mode"
                           .= object
                             ( catMaybes
-                                [ if pinModeInput mode
-                                    then Just ("input", toJSON True)
-                                    else Nothing,
-                                  if pinModeOutput mode
-                                    then Just ("output", toJSON True)
-                                    else Nothing,
-                                  if pinModeOpenDrain mode
-                                    then Just ("open_drain", toJSON True)
-                                    else Nothing,
-                                  if pinModePullUp mode
-                                    then Just ("pullup", toJSON True)
-                                    else Nothing,
-                                  if pinModePullDown mode
-                                    then Just ("pulldown", toJSON True)
-                                    else Nothing
+                                [ do
+                                    guard $ pinModeInput mode
+                                    Just ("input", toJSON True),
+                                  do
+                                    guard $ pinModeOutput mode
+                                    Just ("output", toJSON True),
+                                  do
+                                    guard $ pinModeOpenDrain mode
+                                    Just ("open_drain", toJSON True),
+                                  do
+                                    guard $ pinModePullUp mode
+                                    Just ("pullup", toJSON True),
+                                  do
+                                    guard $ pinModePullDown mode
+                                    Just ("pulldown", toJSON True)
                                 ]
                             )
                       ]
@@ -1651,14 +1649,14 @@ interpretESP (Free espf) =
             fold @[]
               [baseOpts, actionOpts, pinModeOpts, toKeyMap platformOptions]
 
-          yamlNode = Node "binary_sensor" [allOpts]
+          yamlNode = NodeArray "binary_sensor" (allOpts :| [])
        in [yamlNode] <> interpretESP next
     MkLight @name @platform _options platformOptions next ->
       let n = symbolVal $ Proxy @name
           platform = symbolVal $ Proxy @(PlatformToSymbol platform)
           yamlPlatformNode = toKeyMap platformOptions
           yamlNode =
-            Node
+            NodeArray
               "light"
               [ [ "platform" .= platform,
                   "name" .= n,
@@ -1670,12 +1668,9 @@ interpretESP (Free espf) =
     MkScript @name action next ->
       let n = symbolVal $ Proxy @name
           yamlNode =
-            Node
+            NodeArray
               "script"
-              [ [ "id" .= snakeCase n,
-                  "then" .= interpretAction action
-                ]
-              ]
+              [["id" .= snakeCase n, "then" .= interpretAction action]]
        in yamlNode : interpretESP next
     MkWifi (WifiOptions {..}) next ->
       let networksNode =
@@ -1687,11 +1682,11 @@ interpretESP (Free espf) =
             wifiAP <&> \Credentials {..} ->
               "ap" .= object ["ssid" .= ssid, "password" .= password]
           wifiNode =
-            SingleNode "wifi" $ fromList $ catMaybes [Just networksNode, apNode]
+            NodeObject "wifi" (fromList (catMaybes [Just networksNode, apNode]))
        in wifiNode : interpretESP next
     MkAPI (APIOptions encryptionKey) next ->
       let apiNode =
-            SingleNode
+            NodeObject
               "api"
               [ "encryption"
                   .= object
@@ -1702,19 +1697,21 @@ interpretESP (Free espf) =
               ]
        in apiNode : interpretESP next
     MkOTA options next ->
-      let otaNode =
-            Node "ota" $ options <&> \(OTAOptions platform password) ->
-              ["platform" .= platform, "password" .= password]
-       in otaNode : interpretESP next
+      case nonEmpty
+        ( options <&> \(OTAOptions platform password) ->
+            fromList ["platform" .= platform, "password" .= password]
+        ) of
+        Just otas -> NodeArray "ota" otas : interpretESP next
+        Nothing -> interpretESP next
     MkWebServer (WebServerOptions port) next ->
-      let webServerNode = SingleNode "web_server" ["port" .= port]
+      let webServerNode = NodeObject "web_server" (fromList ["port" .= port])
        in webServerNode : interpretESP next
     MkI2C @name options next ->
       let n = symbolVal (Proxy @name)
           i2cNode =
-            Node
+            NodeArray
               "i2c"
-              [ fromList
+              [ KM.fromList
                   $ catMaybes
                     [ Just $ "id" .= n,
                       Just $ "sda" .= i2cSda options,
@@ -1734,12 +1731,12 @@ interpretESP (Free espf) =
                   pn532I2COnTag options <&> \action ->
                     "on_tag" .= interpretAction action
                 ]
-          yamlNode = Node "pn532_i2c" [allFields]
+          yamlNode = NodeArray "pn532_i2c" (allFields :| [])
        in yamlNode : interpretESP next
     MkInterval @name options next ->
       let n = symbolVal (Proxy @name)
           intervalNode =
-            Node
+            NodeArray
               "interval"
               [ [ "id" .= n,
                   "interval" .= fromMaybe "10s" (intervalInterval options),
@@ -1768,7 +1765,8 @@ instance KeyMapOptions BinarySensorOptions where
       mapAction :: Text -> ESPAction -> Maybe (Key, Value)
       mapAction key action = case action of
         Pure _ -> Nothing
-        Free _ -> Just (fromString $ toString key, Array $ interpretAction action)
+        Free _ ->
+          Just (fromString $ toString key, Array $ interpretAction action)
       actionOptions =
         [ mapAction "on_press" onPress,
           mapAction "on_release" onRelease,
