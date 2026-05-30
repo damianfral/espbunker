@@ -89,12 +89,9 @@ data CoverEndstopOptions where
 --------------------------------------------------------------------------------
 
 data LightOptions = LightOptions
-  { lightTransitionLength :: Maybe Int,
-    lightEffects :: [Text],
-    lightColorMode :: Maybe ColorMode,
+  { lightEffects :: [Text],
     lightGammaCorrect :: Maybe Double,
     lightDefaultTransitionLength :: Maybe Int,
-    lightDeviceClass :: Maybe DeviceClass,
     lightIcon :: Maybe Text,
     lightEntityCategory :: Maybe Text,
     lightInternal :: Maybe Bool,
@@ -104,10 +101,7 @@ data LightOptions = LightOptions
 instance Default LightOptions where
   def =
     LightOptions
-      Nothing
       []
-      Nothing
-      Nothing
       Nothing
       Nothing
       Nothing

@@ -13,7 +13,7 @@ import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Base64 qualified as B64
 import Data.Proxy
 import ESPBunker.Actions (ESPAction, interpretAction)
-import ESPBunker.Components (ColorMode, Credentials (..), EncryptionKey (..))
+import ESPBunker.Components (Credentials (..), EncryptionKey (..))
 import ESPBunker.DeviceClass (DeviceClass)
 import ESPBunker.Options
 import GHC.TypeLits (symbolVal)
@@ -265,12 +265,9 @@ instance KeyMapOptions LightOptions where
   toKeyMap LightOptions {..} =
     KM.fromList
       $ catMaybes
-        [ mapMilliseconds "transition_length" lightTransitionLength,
-          mapEffectsOption "effects" lightEffects,
-          mapColorMode "color_mode" lightColorMode,
+        [ mapEffectsOption "effects" lightEffects,
           mapDoubleOption "gamma_correct" lightGammaCorrect,
           mapMilliseconds "default_transition_length" lightDefaultTransitionLength,
-          lightDeviceClass <&> \dc -> "device_class" .= dc,
           lightIcon <&> \icon -> "icon" .= icon,
           lightEntityCategory <&> \category -> "entity_category" .= category,
           lightInternal <&> \internal -> "internal" .= internal,
@@ -281,11 +278,6 @@ instance KeyMapOptions LightOptions where
       mapDoubleOption key val = do
         doubleVal <- val
         Just (fromString $ toString key, toJSON doubleVal)
-
-      mapColorMode :: Text -> Maybe ColorMode -> Maybe (Key, Value)
-      mapColorMode key mode = do
-        colorMode <- mode
-        Just (fromString $ toString key, toJSON colorMode)
 
       mapEffectsOption :: Text -> [Text] -> Maybe (Key, Value)
       mapEffectsOption key effects = do

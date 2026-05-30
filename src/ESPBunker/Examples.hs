@@ -222,12 +222,9 @@ lightWithOptionsExample = do
   enhancedLight <-
     light @"enhanced_light" @Monochromatic
       def
-        { lightTransitionLength = Just 1000,
-          lightEffects = ["pulse", "random"],
-          lightColorMode = Just COLOR_MODE_BRIGHTNESS,
+        { lightEffects = ["pulse", "random"],
           lightGammaCorrect = Just 2.8,
           lightDefaultTransitionLength = Just 2000,
-          lightDeviceClass = Just DeviceClassLight,
           lightIcon = Just "mdi:lightbulb",
           lightEntityCategory = Just "config",
           lightInternal = Just False,
