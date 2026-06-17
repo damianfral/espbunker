@@ -2,7 +2,7 @@
   description = "Haskell DSL for generating ESPHome YAML configurations";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-26.05";
     flake-utils.url = "github:numtide/flake-utils";
     nix-filter.url = "github:numtide/nix-filter";
     feedback.url = "github:NorfairKing/feedback";
@@ -46,7 +46,7 @@
       in rec {
         espbunker = final.haskell.lib.justStaticExecutables haskellPackages.espbunker;
         haskellPackages =
-          prev.haskell.packages.ghc9122.override
+          prev.haskell.packages.ghc912.override
           (old: {
             overrides =
               final.lib.composeExtensions
