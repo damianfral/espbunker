@@ -25,6 +25,7 @@ dependencies:
   - free
   - indexed
   - indexed-free
+  - mtl
   - optparse-applicative
   - optparse-generic
   - relude

@@ -5,7 +5,8 @@
 
 module ESPBunker.Actions where
 
-import Control.Monad.Free (Free (..), liftF)
+import Control.Monad.Free (Free (..), foldFree, liftF)
+import Control.Monad.Writer (MonadWriter (tell), Writer, execWriter)
 import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
@@ -162,112 +163,100 @@ delay ms = liftF $ Delay ms ()
 --------------------------------------------------------------------------------
 
 interpretAction :: Free ESPActionF () -> Array
-interpretAction (Pure _) = empty
-interpretAction (Free espf) = case espf of
-  ToggleSwitch @name _switch next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "switch.toggle" .= snakeCase n
-     in [option] <> interpretAction next
-  TurnOnSwitch @name _switch next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "switch.turn_on" .= snakeCase n
-     in [option] <> interpretAction next
-  TurnOffSwitch @name _switch next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "switch.turn_off" .= snakeCase n
-     in [option] <> interpretAction next
-  TurnOnLight @name _light next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "light.turn_on" .= snakeCase n
-     in [option] <> interpretAction next
-  TurnOffLight @name _light next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "light.turn_off" .= snakeCase n
-     in [option] <> interpretAction next
-  LogMsg msg next ->
-    let option = Object $ "logger.log" .= msg
-     in [option] <> interpretAction next
-  Delay ms next ->
-    let option = Object $ "delay" .= (show @Text ms <> "ms")
-     in [option] <> interpretAction next
-  ComponentUpdate cID next ->
-    let option = Object $ "component.update" .= cID
-     in [option] <> interpretAction next
-  ComponentSuspend cID next ->
-    let option = Object $ "component.suspend" .= cID
-     in [option] <> interpretAction next
-  IfSwitchIsOn @name _switch thenAction elseAction next ->
-    let n = symbolVal (Proxy @name)
-        conditionPart = object ["switch.is_on" .= snakeCase n]
-        thenPart = interpretAction thenAction
-        elseMaybe = maybe [] (actionBranch "else") elseAction
-        ifObject =
-          object
-            $ ["condition" .= conditionPart, "then" .= thenPart]
-            <> elseMaybe
-        ifAction = object ["if" .= ifObject]
-     in [ifAction] <> interpretAction next
-  IfSwitchIsOff @name _switch thenAction elseAction next ->
-    let n = symbolVal (Proxy @name)
-        conditionPart = object ["switch.is_off" .= snakeCase n]
-        thenPart = interpretAction thenAction
-        elseMaybe = maybe [] (actionBranch "else") elseAction
-        ifObject =
-          object
-            $ ["condition" .= conditionPart, "then" .= thenPart]
-            <> elseMaybe
-        ifAction = object ["if" .= ifObject]
-     in [ifAction] <> interpretAction next
-  RunScript @name _script next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "script.execute" .= snakeCase n
-     in [option] <> interpretAction next
-  SetNumber @name _number val next ->
-    let n = symbolVal (Proxy @name)
-        yamlNode =
-          Object $ "number.set" .= object ["id" .= snakeCase n, "value" .= val]
-     in [yamlNode] <> interpretAction next
-  IncrementNumber @name _number _val next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "number.increment" .= snakeCase n
-     in [option] <> interpretAction next
-  DecrementNumber @name _number _val next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "number.decrement" .= snakeCase n
-     in [option] <> interpretAction next
-  SetOutputValue @name _output val next ->
-    let n = symbolVal (Proxy @name)
-        setLevel = object ["id" .= snakeCase n, "level" .= val]
-        yamlNode = Object $ "output.set_level" .= setLevel
-     in [yamlNode] <> interpretAction next
-  TurnOnOutput @name _output next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "output.turn_on" .= snakeCase n
-     in [option] <> interpretAction next
-  TurnOffOutput @name _output next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "output.turn_off" .= snakeCase n
-     in [option] <> interpretAction next
-  OpenCover @name _cover next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "cover.open" .= snakeCase n
-     in [option] <> interpretAction next
-  CloseCover @name _cover next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "cover.close" .= snakeCase n
-     in [option] <> interpretAction next
-  StopCover @name _cover next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "cover.stop" .= snakeCase n
-     in [option] <> interpretAction next
-  SampleSensor @name _sensor next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "component.update" .= snakeCase n
-     in [option] <> interpretAction next
-  SampleTextSensor @name _sensor next ->
-    let n = symbolVal (Proxy @name)
-        option = Object $ "component.update" .= snakeCase n
-     in [option] <> interpretAction next
+interpretAction = execWriter . foldFree go
+  where
+    go :: ESPActionF x -> Writer Array x
+    go (ToggleSwitch @name _switch next) = do
+      tell [Object $ "switch.toggle" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (TurnOnSwitch @name _switch next) = do
+      tell [Object $ "switch.turn_on" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (TurnOffSwitch @name _switch next) = do
+      tell [Object $ "switch.turn_off" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (TurnOnLight @name _light next) = do
+      tell [Object $ "light.turn_on" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (TurnOffLight @name _light next) = do
+      tell [Object $ "light.turn_off" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (LogMsg msg next) = do
+      tell [Object $ "logger.log" .= msg]
+      pure next
+    go (Delay ms next) = do
+      tell [Object $ "delay" .= (show @Text ms <> "ms")]
+      pure next
+    go (ComponentUpdate cID next) = do
+      tell [Object $ "component.update" .= cID]
+      pure next
+    go (ComponentSuspend cID next) = do
+      tell [Object $ "component.suspend" .= cID]
+      pure next
+    go (IfSwitchIsOn @name _switch thenAction elseAction next) = do
+      let n = symbolVal (Proxy @name)
+          conditionPart = object ["switch.is_on" .= snakeCase n]
+          thenPart = interpretAction thenAction
+          elseMaybe = maybe [] (actionBranch "else") elseAction
+          ifObject =
+            object
+              $ ["condition" .= conditionPart, "then" .= thenPart]
+              <> elseMaybe
+      tell [object ["if" .= ifObject]]
+      pure next
+    go (IfSwitchIsOff @name _switch thenAction elseAction next) = do
+      let n = symbolVal (Proxy @name)
+          conditionPart = object ["switch.is_off" .= snakeCase n]
+          thenPart = interpretAction thenAction
+          elseMaybe = maybe [] (actionBranch "else") elseAction
+          ifObject =
+            object
+              $ ["condition" .= conditionPart, "then" .= thenPart]
+              <> elseMaybe
+      tell [object ["if" .= ifObject]]
+      pure next
+    go (RunScript @name _script next) = do
+      tell [Object $ "script.execute" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (SetNumber @name _number val next) = do
+      tell
+        [ Object $ "number.set"
+            .= object
+              ["id" .= snakeCase (symbolVal (Proxy @name)), "value" .= val]
+        ]
+      pure next
+    go (IncrementNumber @name _number _val next) = do
+      tell [Object $ "number.increment" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (DecrementNumber @name _number _val next) = do
+      tell [Object $ "number.decrement" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (SetOutputValue @name _output val next) = do
+      let n = symbolVal (Proxy @name)
+          setLevel = object ["id" .= snakeCase n, "level" .= val]
+      tell [Object $ "output.set_level" .= setLevel]
+      pure next
+    go (TurnOnOutput @name _output next) = do
+      tell [Object $ "output.turn_on" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (TurnOffOutput @name _output next) = do
+      tell [Object $ "output.turn_off" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (OpenCover @name _cover next) = do
+      tell [Object $ "cover.open" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (CloseCover @name _cover next) = do
+      tell [Object $ "cover.close" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (StopCover @name _cover next) = do
+      tell [Object $ "cover.stop" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (SampleSensor @name _sensor next) = do
+      tell [Object $ "component.update" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
+    go (SampleTextSensor @name _sensor next) = do
+      tell [Object $ "component.update" .= snakeCase (symbolVal (Proxy @name))]
+      pure next
 
 actionBranch :: Key -> ESPAction () -> [(Key, Value)]
 actionBranch key action =
