@@ -6,7 +6,7 @@
 
 module ESPBunker.KeyMapOptions where
 
-import Control.Monad.Indexed.Free (IxFree (..))
+import Control.Monad.Free (Free (..))
 import Data.Aeson
 import Data.Aeson.KeyMap (KeyMap)
 import Data.Aeson.KeyMap qualified as KM
@@ -23,7 +23,7 @@ import Relude hiding (State, natVal, return)
 
 class KeyMapOptions a where toKeyMap :: a -> KeyMap Value
 
-mapAction :: Text -> ESPAction -> Maybe (Key, Value)
+mapAction :: Text -> ESPAction () -> Maybe (Key, Value)
 mapAction key action = case action of
   Pure _ -> Nothing
   Free _ ->

@@ -10,8 +10,7 @@
 
 module ESPBunkerSpec where
 
-import Control.Monad.Indexed ((>>>=))
-import Control.Monad.Indexed.Free (iliftFree)
+import Control.Monad.Free (liftF)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified as KM
 import ESPBunker (generateYAML)
@@ -48,7 +47,7 @@ spec = do
 
     it "toggleSwitch"
       $ let s = Switch :: Switch "my_switch" GPIO 5
-         in interpretAction (iliftFree $ ToggleSwitch @"my_switch" s ())
+         in interpretAction (liftF $ ToggleSwitch @"my_switch" s ())
               `shouldBe` [object ["switch.toggle" .= ("my_switch" :: Text)]]
 
     it "turnOnL light"
@@ -92,44 +91,44 @@ spec = do
                       "value" .= (42.5 :: Double)
                     ]
               ]
-       in interpretAction (iliftFree $ SetNumber @"my_number" n 42.5 ())
+       in interpretAction (liftF $ SetNumber @"my_number" n 42.5 ())
             `shouldBe` [expectedObject]
 
     it "incrementNumber"
       $ let n = NumberComponent :: NumberComponent "my_number"
-         in interpretAction (iliftFree $ IncrementNumber @"my_number" n 1.0 ())
+         in interpretAction (liftF $ IncrementNumber @"my_number" n 1.0 ())
               `shouldBe` [object ["number.increment" .= ("my_number" :: Text)]]
 
     it "decrementNumber"
       $ let n = NumberComponent :: NumberComponent "my_number"
-         in interpretAction (iliftFree $ DecrementNumber @"my_number" n 1.0 ())
+         in interpretAction (liftF $ DecrementNumber @"my_number" n 1.0 ())
               `shouldBe` [object ["number.decrement" .= ("my_number" :: Text)]]
 
     it "openCover"
       $ let c = Cover :: Cover "my_cover" Endstop
-         in interpretAction (iliftFree $ OpenCover @"my_cover" c ())
+         in interpretAction (liftF $ OpenCover @"my_cover" c ())
               `shouldBe` [object ["cover.open" .= ("my_cover" :: Text)]]
 
     it "closeCover"
       $ let c = Cover :: Cover "my_cover" Endstop
-         in interpretAction (iliftFree $ CloseCover @"my_cover" c ())
+         in interpretAction (liftF $ CloseCover @"my_cover" c ())
               `shouldBe` [object ["cover.close" .= ("my_cover" :: Text)]]
 
     it "stopCover"
       $ let c = Cover :: Cover "my_cover" Endstop
-         in interpretAction (iliftFree $ StopCover @"my_cover" c ())
+         in interpretAction (liftF $ StopCover @"my_cover" c ())
               `shouldBe` [object ["cover.stop" .= ("my_cover" :: Text)]]
 
     it "sampleSensor"
       $ let s = Sensor :: Sensor "my_sensor"
-         in interpretAction (iliftFree $ SampleSensor @"my_sensor" s ())
+         in interpretAction (liftF $ SampleSensor @"my_sensor" s ())
               `shouldBe` [object ["component.update" .= ("my_sensor" :: Text)]]
 
     it "sampleTextSensor" $ do
       let s = TextSensor :: TextSensor "my_text_sensor"
           expectedObject =
             object ["component.update" .= ("my_text_sensor" :: Text)]
-      interpretAction (iliftFree $ SampleTextSensor @"my_text_sensor" s ())
+      interpretAction (liftF $ SampleTextSensor @"my_text_sensor" s ())
         `shouldBe` [expectedObject]
 
     it "setOutputValue" $ do
@@ -140,17 +139,17 @@ spec = do
                   .= object
                     ["id" .= ("my_output" :: Text), "level" .= (0.75 :: Double)]
               ]
-      interpretAction (iliftFree $ SetOutputValue @"my_output" o 0.75 ())
+      interpretAction (liftF $ SetOutputValue @"my_output" o 0.75 ())
         `shouldBe` [expectedObject]
 
     it "turnOnOutput"
       $ let o = Output :: Output "my_output" GPIO
-         in interpretAction (iliftFree $ TurnOnOutput @"my_output" o ())
+         in interpretAction (liftF $ TurnOnOutput @"my_output" o ())
               `shouldBe` [object ["output.turn_on" .= ("my_output" :: Text)]]
 
     it "turnOffOutput"
       $ let o = Output :: Output "my_output" GPIO
-         in interpretAction (iliftFree $ TurnOffOutput @"my_output" o ())
+         in interpretAction (liftF $ TurnOffOutput @"my_output" o ())
               `shouldBe` [object ["output.turn_off" .= ("my_output" :: Text)]]
 
     it "ifSwitchIsOn with then only"
@@ -202,7 +201,7 @@ spec = do
 
     it "sequential actions produce combined array"
       $ let s = Switch :: Switch "my_switch" GPIO 5
-            both = turnOn s >>>= \_ -> turnOff s
+            both = turnOn s >> turnOff s
          in interpretAction both
               `shouldBe` [ object ["switch.turn_on" .= ("my_switch" :: Text)],
                            object ["switch.turn_off" .= ("my_switch" :: Text)]
@@ -223,7 +222,7 @@ spec = do
                   .= object
                     ["id" .= ("my_number" :: Text), "value" .= (0 :: Double)]
               ]
-      interpretAction (iliftFree $ SetNumber @"my_number" n 0 ())
+      interpretAction (liftF $ SetNumber @"my_number" n 0 ())
         `shouldBe` [expectedObject]
 
   describe "nodesToKeyMap" $ do

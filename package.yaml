@@ -22,6 +22,7 @@ dependencies:
   - base64-bytestring
   - containers
   - data-default
+  - free
   - indexed
   - indexed-free
   - optparse-applicative

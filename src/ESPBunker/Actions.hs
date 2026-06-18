@@ -5,8 +5,7 @@
 
 module ESPBunker.Actions where
 
-import Control.Monad.Indexed (IxFunctor (imap), ireturn)
-import Control.Monad.Indexed.Free (IxFree (..), iliftFree)
+import Control.Monad.Free (Free (..), liftF)
 import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
@@ -16,158 +15,153 @@ import Relude hiding (State, natVal, return)
 
 --------------------------------------------------------------------------------
 
-data ESPActionF f g next where
+data ESPActionF next where
   CloseCover ::
     (KnownSymbol name) =>
-    Cover name platform -> next -> ESPActionF f g next
+    Cover name platform -> next -> ESPActionF next
   DecrementNumber ::
     (KnownSymbol name) =>
-    NumberComponent name -> Double -> next -> ESPActionF f g next
-  Delay :: Int -> next -> ESPActionF f g next
+    NumberComponent name -> Double -> next -> ESPActionF next
+  Delay :: Int -> next -> ESPActionF next
   ComponentUpdate ::
-    Text -> next -> ESPActionF f g next
+    Text -> next -> ESPActionF next
   ComponentSuspend ::
-    Text -> next -> ESPActionF f g next
+    Text -> next -> ESPActionF next
   IfSwitchIsOn ::
     (KnownSymbol name) =>
     Switch name platform pin ->
-    ESPAction ->
-    Maybe ESPAction ->
+    ESPAction () ->
+    Maybe (ESPAction ()) ->
     next ->
-    ESPActionF f g next
+    ESPActionF next
   IfSwitchIsOff ::
     (KnownSymbol name) =>
     Switch name platform pin ->
-    ESPAction ->
-    Maybe ESPAction ->
+    ESPAction () ->
+    Maybe (ESPAction ()) ->
     next ->
-    ESPActionF f g next
+    ESPActionF next
   IncrementNumber ::
     (KnownSymbol name) =>
-    NumberComponent name -> Double -> next -> ESPActionF f g next
-  LogMsg :: Text -> next -> ESPActionF f g next
+    NumberComponent name -> Double -> next -> ESPActionF next
+  LogMsg :: Text -> next -> ESPActionF next
   OpenCover ::
     (KnownSymbol name) =>
-    Cover name platform -> next -> ESPActionF f g next
+    Cover name platform -> next -> ESPActionF next
   RunScript ::
     (KnownSymbol name) =>
-    Script name -> next -> ESPActionF f g next
+    Script name -> next -> ESPActionF next
   SampleSensor ::
     (KnownSymbol name) =>
-    Sensor name -> next -> ESPActionF f g next
+    Sensor name -> next -> ESPActionF next
   SampleTextSensor ::
     (KnownSymbol name) =>
-    TextSensor name -> next -> ESPActionF f g next
+    TextSensor name -> next -> ESPActionF next
   SetNumber ::
     (KnownSymbol name) =>
-    NumberComponent name -> Double -> next -> ESPActionF f g next
+    NumberComponent name -> Double -> next -> ESPActionF next
   SetOutputValue ::
     (KnownSymbol name) =>
-    Output name platform -> Double -> next -> ESPActionF f g next
+    Output name platform -> Double -> next -> ESPActionF next
   StopCover ::
     (KnownSymbol name) =>
-    Cover name platform -> next -> ESPActionF f g next
+    Cover name platform -> next -> ESPActionF next
   ToggleSwitch ::
     (KnownSymbol name) =>
-    Switch name platform pin -> next -> ESPActionF f g next
+    Switch name platform pin -> next -> ESPActionF next
   TurnOffLight ::
     (KnownSymbol name) =>
-    Light name platform -> next -> ESPActionF f g next
+    Light name platform -> next -> ESPActionF next
   TurnOffOutput ::
     (KnownSymbol name) =>
-    Output name platform -> next -> ESPActionF f g next
+    Output name platform -> next -> ESPActionF next
   TurnOffSwitch ::
     (KnownSymbol name) =>
-    Switch name platform pin -> next -> ESPActionF f g next
+    Switch name platform pin -> next -> ESPActionF next
   TurnOnLight ::
     (KnownSymbol name) =>
-    Light name platform -> next -> ESPActionF f g next
+    Light name platform -> next -> ESPActionF next
   TurnOnOutput ::
     (KnownSymbol name) =>
-    Output name platform -> next -> ESPActionF f g next
+    Output name platform -> next -> ESPActionF next
   TurnOnSwitch ::
     (KnownSymbol name) =>
-    Switch name platform pin -> next -> ESPActionF f g next
+    Switch name platform pin -> next -> ESPActionF next
 
-instance IxFunctor ESPActionF where
-  imap f (CloseCover n next) = CloseCover n $ f next
-  imap f (DecrementNumber n v next) = DecrementNumber n v $ f next
-  imap f (Delay ms next) = Delay ms $ f next
-  imap f (ComponentUpdate cID next) = ComponentUpdate cID $ f next
-  imap f (ComponentSuspend cID next) = ComponentSuspend cID $ f next
-  imap f (IfSwitchIsOn sw thenAct elseAct next) =
-    IfSwitchIsOn sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
-  imap f (IfSwitchIsOff sw thenAct elseAct next) =
-    IfSwitchIsOff sw (imap id thenAct) (fmap (imap id) elseAct) $ f next
-  imap f (IncrementNumber n v next) = IncrementNumber n v $ f next
-  imap f (LogMsg msg next) = LogMsg msg $ f next
-  imap f (OpenCover n next) = OpenCover n $ f next
-  imap f (RunScript sc next) = RunScript sc $ f next
-  imap f (SampleSensor n next) = SampleSensor n $ f next
-  imap f (SampleTextSensor n next) = SampleTextSensor n $ f next
-  imap f (SetNumber n v next) = SetNumber n v $ f next
-  imap f (SetOutputValue n v next) = SetOutputValue n v $ f next
-  imap f (StopCover n next) = StopCover n $ f next
-  imap f (ToggleSwitch n next) = ToggleSwitch n $ f next
-  imap f (TurnOffLight l next) = TurnOffLight l $ f next
-  imap f (TurnOffOutput n next) = TurnOffOutput n $ f next
-  imap f (TurnOffSwitch s next) = TurnOffSwitch s $ f next
-  imap f (TurnOnLight l next) = TurnOnLight l $ f next
-  imap f (TurnOnOutput n next) = TurnOnOutput n $ f next
-  imap f (TurnOnSwitch s next) = TurnOnSwitch s $ f next
+instance Functor ESPActionF where
+  fmap f (CloseCover n next) = CloseCover n $ f next
+  fmap f (DecrementNumber n v next) = DecrementNumber n v $ f next
+  fmap f (Delay ms next) = Delay ms $ f next
+  fmap f (ComponentUpdate cID next) = ComponentUpdate cID $ f next
+  fmap f (ComponentSuspend cID next) = ComponentSuspend cID $ f next
+  fmap f (IfSwitchIsOn sw thenAct elseAct next) =
+    IfSwitchIsOn sw thenAct elseAct $ f next
+  fmap f (IfSwitchIsOff sw thenAct elseAct next) =
+    IfSwitchIsOff sw thenAct elseAct $ f next
+  fmap f (IncrementNumber n v next) = IncrementNumber n v $ f next
+  fmap f (LogMsg msg next) = LogMsg msg $ f next
+  fmap f (OpenCover n next) = OpenCover n $ f next
+  fmap f (RunScript sc next) = RunScript sc $ f next
+  fmap f (SampleSensor n next) = SampleSensor n $ f next
+  fmap f (SampleTextSensor n next) = SampleTextSensor n $ f next
+  fmap f (SetNumber n v next) = SetNumber n v $ f next
+  fmap f (SetOutputValue n v next) = SetOutputValue n v $ f next
+  fmap f (StopCover n next) = StopCover n $ f next
+  fmap f (ToggleSwitch n next) = ToggleSwitch n $ f next
+  fmap f (TurnOffLight l next) = TurnOffLight l $ f next
+  fmap f (TurnOffOutput n next) = TurnOffOutput n $ f next
+  fmap f (TurnOffSwitch s next) = TurnOffSwitch s $ f next
+  fmap f (TurnOnLight l next) = TurnOnLight l $ f next
+  fmap f (TurnOnOutput n next) = TurnOnOutput n $ f next
+  fmap f (TurnOnSwitch s next) = TurnOnSwitch s $ f next
 
-newtype IxIdentity i j a = IxIdentity a
+type ESPAction = Free ESPActionF
 
-instance IxFunctor IxIdentity where
-  imap f (IxIdentity a) = IxIdentity $ f a
-
-type ESPAction = IxFree ESPActionF () () ()
-
-noAction :: ESPAction
-noAction = ireturn ()
+noAction :: ESPAction ()
+noAction = pure ()
 
 --------------------------------------------------------------------------------
 
-turnOn :: (KnownSymbol name) => Switch name platform pin -> ESPAction
-turnOn s = iliftFree $ TurnOnSwitch s ()
+turnOn :: (KnownSymbol name) => Switch name platform pin -> ESPAction ()
+turnOn s = liftF $ TurnOnSwitch s ()
 
-turnOff :: (KnownSymbol name) => Switch name platform pin -> ESPAction
-turnOff s = iliftFree $ TurnOffSwitch s ()
+turnOff :: (KnownSymbol name) => Switch name platform pin -> ESPAction ()
+turnOff s = liftF $ TurnOffSwitch s ()
 
-turnOnL :: (KnownSymbol name) => Light name platform -> ESPAction
-turnOnL l = iliftFree $ TurnOnLight l ()
+turnOnL :: (KnownSymbol name) => Light name platform -> ESPAction ()
+turnOnL l = liftF $ TurnOnLight l ()
 
-turnOffL :: (KnownSymbol name) => Light name platform -> ESPAction
-turnOffL l = iliftFree $ TurnOffLight l ()
+turnOffL :: (KnownSymbol name) => Light name platform -> ESPAction ()
+turnOffL l = liftF $ TurnOffLight l ()
 
-runScript :: (KnownSymbol name) => Script name -> ESPAction
-runScript s = iliftFree $ RunScript s ()
+runScript :: (KnownSymbol name) => Script name -> ESPAction ()
+runScript s = liftF $ RunScript s ()
 
-componentUpdate :: Text -> ESPAction
-componentUpdate cID = iliftFree $ ComponentUpdate cID ()
+componentUpdate :: Text -> ESPAction ()
+componentUpdate cID = liftF $ ComponentUpdate cID ()
 
-componentSuspend :: Text -> ESPAction
-componentSuspend cID = iliftFree $ ComponentSuspend cID ()
+componentSuspend :: Text -> ESPAction ()
+componentSuspend cID = liftF $ ComponentSuspend cID ()
 
 ifSwitchIsOn ::
   (KnownSymbol name) =>
-  Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
-ifSwitchIsOn sw thenAction elseAction = iliftFree $ IfSwitchIsOn sw thenAction elseAction ()
+  Switch name platform pin -> ESPAction () -> Maybe (ESPAction ()) -> ESPAction ()
+ifSwitchIsOn sw thenAction elseAction = liftF $ IfSwitchIsOn sw thenAction elseAction ()
 
 ifSwitchIsOff ::
   (KnownSymbol name) =>
-  Switch name platform pin -> ESPAction -> Maybe ESPAction -> ESPAction
-ifSwitchIsOff sw thenAction elseAction = iliftFree $ IfSwitchIsOff sw thenAction elseAction ()
+  Switch name platform pin -> ESPAction () -> Maybe (ESPAction ()) -> ESPAction ()
+ifSwitchIsOff sw thenAction elseAction = liftF $ IfSwitchIsOff sw thenAction elseAction ()
 
-log :: Text -> ESPAction
-log t = iliftFree $ LogMsg t ()
+log :: Text -> ESPAction ()
+log t = liftF $ LogMsg t ()
 
-delay :: Int -> ESPAction
-delay ms = iliftFree $ Delay ms ()
+delay :: Int -> ESPAction ()
+delay ms = liftF $ Delay ms ()
 
 --------------------------------------------------------------------------------
 
-interpretAction :: IxFree ESPActionF i j () -> Array
+interpretAction :: Free ESPActionF () -> Array
 interpretAction (Pure _) = empty
 interpretAction (Free espf) = case espf of
   ToggleSwitch @name _switch next ->
@@ -275,7 +269,7 @@ interpretAction (Free espf) = case espf of
         option = Object $ "component.update" .= snakeCase n
      in [option] <> interpretAction next
 
-actionBranch :: Key -> ESPAction -> [(Key, Value)]
+actionBranch :: Key -> ESPAction () -> [(Key, Value)]
 actionBranch key action =
   let interpreted = interpretAction action
    in [key .= interpreted | not $ null interpreted]

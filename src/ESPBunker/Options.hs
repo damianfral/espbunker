@@ -21,7 +21,7 @@ instance Default ESPHomeOptions where
 
 data OnBootAction = OnBootAction
   { onBootPriority :: Maybe Int,
-    onBootAction :: ESPAction
+    onBootAction :: ESPAction ()
   }
   deriving (Generic)
 
@@ -31,11 +31,11 @@ instance Default OnBootAction where
 --------------------------------------------------------------------------------
 
 data BinarySensorOptions = BinarySensorOptions
-  { onPress :: ESPAction,
-    onRelease :: ESPAction,
-    onClick :: ESPAction,
-    onDoubleClick :: ESPAction,
-    onLongPress :: ESPAction,
+  { onPress :: ESPAction (),
+    onRelease :: ESPAction (),
+    onClick :: ESPAction (),
+    onDoubleClick :: ESPAction (),
+    onLongPress :: ESPAction (),
     binarySensorDeviceClass :: Maybe DeviceClass,
     binarySensorIcon :: Maybe Text,
     binarySensorEntityCategory :: Maybe Text,
@@ -76,9 +76,9 @@ data CoverEndstopOptions where
   CoverEndstopOptions ::
     forall openEndstop closeEndstop openPlatform openPin closePlatform closePin.
     (KnownSymbol openEndstop, KnownSymbol closeEndstop) =>
-    { openAction :: ESPAction,
-      closeAction :: ESPAction,
-      stopAction :: ESPAction,
+    { openAction :: ESPAction (),
+      closeAction :: ESPAction (),
+      stopAction :: ESPAction (),
       openEndstop :: BinarySensor openEndstop openPlatform openPin,
       closeEndstop :: BinarySensor closeEndstop closePlatform closePin,
       openDuration :: Int,
@@ -222,8 +222,8 @@ newtype SensorADCOptions = SensorADCOptions {attenuation :: Maybe Attenuation}
 
 data SwitchOptions = SwitchOptions
   { switchRestoreMode :: Maybe RestoreMode,
-    onTurnOn :: ESPAction,
-    onTurnOff :: ESPAction,
+    onTurnOn :: ESPAction (),
+    onTurnOff :: ESPAction (),
     switchDeviceClass :: Maybe DeviceClass,
     switchIcon :: Maybe Text,
     switchEntityCategory :: Maybe Text,
@@ -264,7 +264,7 @@ instance Default I2COptions where
 
 data PN532I2COptions = PN532I2COptions
   { pn532I2CId :: Maybe Text,
-    pn532I2COnTag :: Maybe ESPAction
+    pn532I2COnTag :: Maybe (ESPAction ())
   }
   deriving (Generic)
 
@@ -274,7 +274,7 @@ instance Default PN532I2COptions where
 data IntervalOptions = IntervalOptions
   { intervalId :: Maybe Text,
     intervalInterval :: Maybe Text,
-    intervalAction :: ESPAction
+    intervalAction :: ESPAction ()
   }
   deriving (Generic)
 
@@ -312,6 +312,6 @@ addNetwork ssid p opts =
 ap :: Text -> Password -> WifiOptions -> WifiOptions
 ap ssid p opts = opts {wifiAP = Just $ def {ssid = ssid, password = p}}
 
-addBootAction :: Maybe Int -> ESPAction -> ESPHomeOptions -> ESPHomeOptions
+addBootAction :: Maybe Int -> ESPAction () -> ESPHomeOptions -> ESPHomeOptions
 addBootAction mbPriority action opts =
   opts {espHomeOnBoot = Just $ OnBootAction mbPriority action}

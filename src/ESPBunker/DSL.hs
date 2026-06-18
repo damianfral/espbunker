@@ -104,7 +104,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
-    ESPAction -> next -> ESPF board newBoard next
+    ESPAction () -> next -> ESPF board newBoard next
   MkSwitch ::
     forall
       name
@@ -370,7 +370,7 @@ script ::
     AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
-  ESPAction -> ESPM board newBoard (Script name)
+  ESPAction () -> ESPM board newBoard (Script name)
 script actions = iliftFree $ MkScript @name actions Script
 
 light ::
