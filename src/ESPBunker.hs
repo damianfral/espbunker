@@ -4,6 +4,7 @@
 module ESPBunker (module X) where
 
 import ESPBunker.Actions as X
+import ESPBunker.Boards as X
 import ESPBunker.Components as X
 import ESPBunker.DSL as X
 import ESPBunker.Interpreter as X

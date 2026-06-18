@@ -10,6 +10,7 @@ import Control.Monad.Indexed.Free (IxFree (..), iliftFree)
 import Data.Aeson
 import Data.Aeson.KeyMap (KeyMap, insert, insertWith)
 import ESPBunker.Actions (ESPAction)
+import ESPBunker.Boards ()
 import ESPBunker.Components
 import ESPBunker.DeviceClass (DeviceClass)
 import ESPBunker.KeyMapOptions (KeyMapOptions (..))
@@ -291,12 +292,6 @@ instance IxFunctor ESPF where
 --------------------------------------------------------------------------------
 
 type ESPM from to a = IxFree ESPF from to a
-
-type ESP32C3 =
-  Board
-    "esp32-c3-devkitm-1"
-    '[]
-    '[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 19, 20, 21]
 
 --------------------------------------------------------------------------------
 
