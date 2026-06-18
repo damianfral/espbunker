@@ -54,23 +54,12 @@
               (
                 self: super: {
                   espbunker =
-                    # self.generateOptparseApplicativeCompletions
-                    #   [ "espbunker" ]
+                    (self.callCabal2nix "espbunker" filteredSrc {}).overrideAttrs
                     (
-                      (self.callCabal2nix "espbunker" filteredSrc {}).overrideAttrs
-                      (
-                        oldAttrs: {
-                          nativeBuildInputs =
-                            oldAttrs.nativeBuildInputs
-                            ++ [final.makeWrapper final.esphome];
-                          # postInstall =
-                          #   (oldAttrs.postInstall or "")
-                          #   + ''
-                          #     wrapProgram $out/bin/espbunker \
-                          #       --suffix PATH : ${final.lib.makeBinPath [final.esphome]}
-                          #   '';
-                        }
-                      )
+                      oldAttrs: {
+                        nativeBuildInputs =
+                          oldAttrs.nativeBuildInputs ++ [final.esphome];
+                      }
                     );
                 }
               );
