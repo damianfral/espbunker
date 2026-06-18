@@ -71,25 +71,21 @@ interpretESP (Free espf) = case espf of
                 <> toKeyMap opts
             ]
      in yamlNode : interpretESP next
-  MkButton @name @pin options next ->
+  MkButton @name @pin options next -> do
     let n = symbolVal (Proxy @name)
         buttonNode =
           NodeArray
             "button"
-            [ fromList
-                [("platform", "template"), "name" .= n, "id" .= snakeCase n]
-            ]
-
-        binarySensorNode =
-          let baseOpts =
-                [ "platform" .= String "gpio",
-                  "pin" .= pinToText @pin,
-                  "name" .= n,
-                  "id" .= (snakeCase n <> "_binary_sensor")
-                ]
-              allOpts = fold @[] [baseOpts, toKeyMap options]
-           in NodeArray "binary_sensor" (allOpts :| [])
-     in buttonNode : binarySensorNode : interpretESP next
+            [[("platform", "template"), "name" .= n, "id" .= snakeCase n]]
+        baseOpts =
+          [ "platform" .= String "gpio",
+            "pin" .= pinToText @pin,
+            "name" .= n,
+            "id" .= (snakeCase n <> "_binary_sensor")
+          ]
+        allOpts = fold @[] [baseOpts, toKeyMap options]
+        binarySensorNode = NodeArray "binary_sensor" (allOpts :| [])
+    buttonNode : binarySensorNode : interpretESP next
   MkOutput @name @platform @pin opts next ->
     let n = symbolVal (Proxy @name)
         platform = symbolVal (Proxy @(PlatformToSymbol platform))
@@ -135,9 +131,7 @@ interpretESP (Free espf) = case espf of
         yamlNode =
           NodeArray
             "text_sensor"
-            [ fromList
-                [("platform", "template"), "name" .= n, "id" .= snakeCase n]
-            ]
+            [[("platform", "template"), "name" .= n, "id" .= snakeCase n]]
      in yamlNode : interpretESP next
   MkBinarySensor @name @platform @pin options platformOptions next ->
     let n = symbolVal (Proxy @name)
@@ -169,7 +163,7 @@ interpretESP (Free espf) = case espf of
                             ]
                         )
                   ]
-             in ["pin" .= object (fromList pinObj)]
+             in ["pin" .= object pinObj]
         allOpts =
           fold @[]
             [baseOpts, pinModeOpts, toKeyMap options, toKeyMap platformOptions]
