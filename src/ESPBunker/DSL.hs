@@ -36,8 +36,8 @@ type family PlatformToOptions component platform where
 
 data ESPF :: Type -> Type -> Type -> Type where
   MkBoard ::
-    forall board names pins boardName next.
-    (board ~ Board boardName names pins) => next -> ESPF board board next
+    forall board names gpioPins adcPins ledcPins boardName next.
+    (board ~ Board boardName names gpioPins adcPins ledcPins) => next -> ESPF board board next
   MkESPHome ::
     forall name next board.
     (KnownSymbol name) =>
@@ -49,9 +49,13 @@ data ESPF :: Type -> Type -> Type -> Type where
       platform
       pin
       names
-      freePins
+      gpioPins
+      adcPins
+      ledcPins
       newNames
-      newFreePins
+      newGPIO
+      newADC
+      newLEDC
       options
       platformSymbol
       board
@@ -61,16 +65,18 @@ data ESPF :: Type -> Type -> Type -> Type where
     ( KnownSymbol name,
       KnownNat pin,
       AssertNameIsAvailable name names,
-      AssertPinIsAvailable pin freePins,
+      AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins,
+      newGPIO ~ Remove pin gpioPins,
+      newADC ~ Remove pin adcPins,
+      newLEDC ~ Remove pin ledcPins,
       options ~ PlatformToOptions BinarySensor platform,
       KeyMapOptions options,
       platformSymbol ~ PlatformToSymbol platform,
       KnownSymbol platformSymbol,
       KnownSymbol boardName,
-      board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames newFreePins
+      board ~ Board boardName names gpioPins adcPins ledcPins,
+      newBoard ~ Board boardName newNames newGPIO newADC newLEDC
     ) =>
     BinarySensorOptions -> options -> next -> ESPF board newBoard next
   MkLight ::
@@ -79,6 +85,8 @@ data ESPF :: Type -> Type -> Type -> Type where
       platform
       names
       freePins
+      adcPins
+      ledcPins
       newNames
       options
       platformSymbol
@@ -93,14 +101,14 @@ data ESPF :: Type -> Type -> Type -> Type where
       KnownSymbol platformSymbol,
       KeyMapOptions options,
       options ~ PlatformToOptions Light platform,
-      board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins
+      board ~ Board boardName names freePins adcPins ledcPins,
+      newBoard ~ Board boardName newNames freePins adcPins ledcPins
     ) =>
     LightOptions -> options -> next -> ESPF board newBoard next
   MkScript ::
-    forall name names freePins newNames boardName board newBoard next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins,
+    forall name names freePins adcPins ledcPins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins adcPins ledcPins,
+      newBoard ~ Board boardName newNames freePins adcPins ledcPins,
       KnownSymbol name,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names
@@ -112,21 +120,27 @@ data ESPF :: Type -> Type -> Type -> Type where
       platform
       pin
       names
-      freePins
+      gpioPins
+      adcPins
+      ledcPins
       newNames
-      newFreePins
+      newGPIO
+      newADC
+      newLEDC
       boardName
       board
       newBoard
       next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames newFreePins,
+    ( board ~ Board boardName names gpioPins adcPins ledcPins,
+      newBoard ~ Board boardName newNames newGPIO newADC newLEDC,
       KnownSymbol name,
       KnownNat pin,
       AssertNameIsAvailable name names,
-      AssertPinIsAvailable pin freePins,
+      AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins,
+      newGPIO ~ Remove pin gpioPins,
+      newADC ~ Remove pin adcPins,
+      newLEDC ~ Remove pin ledcPins,
       KnownSymbol (PlatformToSymbol platform)
     ) =>
     SwitchOptions -> next -> ESPF board newBoard next
@@ -136,49 +150,55 @@ data ESPF :: Type -> Type -> Type -> Type where
       platform
       pin
       names
-      freePins
+      gpioPins
+      adcPins
+      ledcPins
       newNames
-      newFreePins
+      newGPIO
+      newADC
+      newLEDC
       boardName
       board
       newBoard
       options
       next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames newFreePins,
+    ( board ~ Board boardName names gpioPins adcPins ledcPins,
+      newBoard ~ Board boardName newNames newGPIO newADC newLEDC,
       KnownSymbol name,
       KnownNat pin,
       AssertNameIsAvailable name names,
-      AssertPinIsAvailable pin freePins,
+      AssertPinIsAvailable PinADC pin gpioPins adcPins ledcPins,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins,
+      newGPIO ~ Remove pin gpioPins,
+      newADC ~ Remove pin adcPins,
+      newLEDC ~ Remove pin ledcPins,
       options ~ PlatformToOptions Sensor platform,
       KnownSymbol (PlatformToSymbol platform),
       KeyMapOptions options
     ) =>
     SensorOptions -> options -> next -> ESPF board newBoard next
   MkTextSensor ::
-    forall name names freePins newNames boardName board newBoard next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins,
+    forall name names freePins adcPins ledcPins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins adcPins ledcPins,
+      newBoard ~ Board boardName newNames freePins adcPins ledcPins,
       KnownSymbol name,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
     next -> ESPF board newBoard next
   MkNumber ::
-    forall name names freePins newNames boardName board newBoard next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins,
+    forall name names freePins adcPins ledcPins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins adcPins ledcPins,
+      newBoard ~ Board boardName newNames freePins adcPins ledcPins,
       KnownSymbol name,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names
     ) =>
     NumberOptions -> next -> ESPF board newBoard next
   MkSelect ::
-    forall name names freePins newNames boardName board newBoard next.
-    ( board ~ Board boardName names freePins,
-      newBoard ~ Board boardName newNames freePins,
+    forall name names freePins adcPins ledcPins newNames boardName board newBoard next.
+    ( board ~ Board boardName names freePins adcPins ledcPins,
+      newBoard ~ Board boardName newNames freePins adcPins ledcPins,
       KnownSymbol name,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names
@@ -190,30 +210,36 @@ data ESPF :: Type -> Type -> Type -> Type where
       platform
       pin
       names
-      freePins
+      gpioPins
+      adcPins
+      ledcPins
       newNames
-      newFreePins
+      newGPIO
+      newADC
+      newLEDC
       boardName
       options
       next.
     ( KnownSymbol name,
       KnownSymbol (PlatformToSymbol platform),
       KnownNat pin,
-      AssertPinIsAvailable pin freePins,
+      AssertPinIsAvailable (PlatformToPinPlatform platform) pin gpioPins adcPins ledcPins,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins,
+      newGPIO ~ Remove pin gpioPins,
+      newADC ~ Remove pin adcPins,
+      newLEDC ~ Remove pin ledcPins,
       options ~ PlatformToOptions Output platform,
       KeyMapOptions options
     ) =>
     options ->
     next ->
     ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
+      (Board boardName names gpioPins adcPins ledcPins)
+      (Board boardName newNames newGPIO newADC newLEDC)
       next
   MkCover ::
-    forall name platform names freePins newNames boardName options next.
+    forall name platform names freePins adcPins ledcPins newNames boardName options next.
     ( KnownSymbol name,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names,
@@ -224,23 +250,25 @@ data ESPF :: Type -> Type -> Type -> Type where
     options ->
     next ->
     ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames freePins)
+      (Board boardName names freePins adcPins ledcPins)
+      (Board boardName newNames freePins adcPins ledcPins)
       next
   MkButton ::
-    forall name pin names freePins newNames newFreePins boardName next.
+    forall name pin names gpioPins adcPins ledcPins newNames newGPIO newADC newLEDC boardName next.
     ( KnownSymbol name,
       KnownNat pin,
-      AssertPinIsAvailable pin freePins,
+      AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
       AssertNameIsAvailable name names,
       newNames ~ Insert name names,
-      newFreePins ~ Remove pin freePins
+      newGPIO ~ Remove pin gpioPins,
+      newADC ~ Remove pin adcPins,
+      newLEDC ~ Remove pin ledcPins
     ) =>
     BinarySensorOptions ->
     next ->
     ESPF
-      (Board boardName names freePins)
-      (Board boardName newNames newFreePins)
+      (Board boardName names gpioPins adcPins ledcPins)
+      (Board boardName newNames newGPIO newADC newLEDC)
       next
   MkWifi :: WifiOptions -> next -> ESPF board board next
   MkAPI :: APIOptions -> next -> ESPF board board next
@@ -296,9 +324,9 @@ type ESPM from to a = IxFree ESPF from to a
 --------------------------------------------------------------------------------
 
 board ::
-  forall board names pins boardName.
-  (board ~ Board boardName names pins) =>
-  ESPM board board (Board boardName names pins)
+  forall board names gpioPins adcPins ledcPins boardName.
+  (board ~ Board boardName names gpioPins adcPins ledcPins) =>
+  ESPM board board (Board boardName names gpioPins adcPins ledcPins)
 board = iliftFree $ MkBoard @board Board
 
 esphome ::
@@ -314,20 +342,26 @@ switch ::
     platform
     pin
     names
-    freePins
+    gpioPins
+    adcPins
+    ledcPins
     newNames
-    newFreePins
+    newGPIO
+    newADC
+    newLEDC
     boardName
     board
     newBoard.
-  ( board ~ Board boardName names freePins,
-    newBoard ~ Board boardName newNames newFreePins,
+  ( board ~ Board boardName names gpioPins adcPins ledcPins,
+    newBoard ~ Board boardName newNames newGPIO newADC newLEDC,
     KnownSymbol name,
     KnownNat pin,
     AssertNameIsAvailable name names,
-    AssertPinIsAvailable pin freePins,
+    AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins,
+    newGPIO ~ Remove pin gpioPins,
+    newADC ~ Remove pin adcPins,
+    newLEDC ~ Remove pin ledcPins,
     KnownSymbol (PlatformToSymbol platform)
   ) =>
   SwitchOptions ->
@@ -335,13 +369,15 @@ switch ::
 switch opts = iliftFree $ MkSwitch @name @platform @pin opts Switch
 
 binarySensor ::
-  forall name platform pin names freePins newNames newFreePins options boardName.
+  forall name platform pin names gpioPins adcPins ledcPins newNames newGPIO newADC newLEDC options boardName.
   ( KnownSymbol name,
     KnownNat pin,
     AssertNameIsAvailable name names,
-    AssertPinIsAvailable pin freePins,
+    AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins,
+    newGPIO ~ Remove pin gpioPins,
+    newADC ~ Remove pin adcPins,
+    newLEDC ~ Remove pin ledcPins,
     options ~ PlatformToOptions BinarySensor platform,
     KnownSymbol (PlatformToSymbol platform),
     KeyMapOptions options,
@@ -350,17 +386,17 @@ binarySensor ::
   BinarySensorOptions ->
   options ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames newFreePins)
+    (Board boardName names gpioPins adcPins ledcPins)
+    (Board boardName newNames newGPIO newADC newLEDC)
     (BinarySensor name platform pin)
 binarySensor options platformOptions =
   iliftFree
     $ MkBinarySensor @name @platform @pin options platformOptions BinarySensor
 
 script ::
-  forall name names freePins newNames boardName board newBoard.
-  ( board ~ Board boardName names freePins,
-    newBoard ~ Board boardName newNames freePins,
+  forall name names freePins adcPins ledcPins newNames boardName board newBoard.
+  ( board ~ Board boardName names freePins adcPins ledcPins,
+    newBoard ~ Board boardName newNames freePins adcPins ledcPins,
     KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names
@@ -369,7 +405,7 @@ script ::
 script actions = iliftFree $ MkScript @name actions Script
 
 light ::
-  forall name platform names freePins newNames options platformSymbol boardName.
+  forall name platform names freePins adcPins ledcPins newNames options platformSymbol boardName.
   ( KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names,
@@ -381,8 +417,8 @@ light ::
   LightOptions ->
   options ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
+    (Board boardName names freePins adcPins ledcPins)
+    (Board boardName newNames freePins adcPins ledcPins)
     (Light name platform)
 light options platformOptions =
   iliftFree $ MkLight @name @platform options platformOptions Light
@@ -393,21 +429,27 @@ sensor ::
     platform
     pin
     names
-    freePins
+    gpioPins
+    adcPins
+    ledcPins
     newNames
-    newFreePins
+    newGPIO
+    newADC
+    newLEDC
     boardName
     board
     newBoard
     options.
-  ( board ~ Board boardName names freePins,
-    newBoard ~ Board boardName newNames newFreePins,
+  ( board ~ Board boardName names gpioPins adcPins ledcPins,
+    newBoard ~ Board boardName newNames newGPIO newADC newLEDC,
     KnownSymbol name,
     KnownNat pin,
     AssertNameIsAvailable name names,
-    AssertPinIsAvailable pin freePins,
+    AssertPinIsAvailable PinADC pin gpioPins adcPins ledcPins,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins,
+    newGPIO ~ Remove pin gpioPins,
+    newADC ~ Remove pin adcPins,
+    newLEDC ~ Remove pin ledcPins,
     options ~ PlatformToOptions Sensor platform,
     KeyMapOptions options,
     KnownSymbol (PlatformToSymbol platform)
@@ -417,26 +459,28 @@ sensor opts platformOpts =
   iliftFree $ MkSensor @name @platform @pin opts platformOpts Sensor
 
 output ::
-  forall name platform pin names freePins newNames newFreePins boardName options.
+  forall name platform pin names gpioPins adcPins ledcPins newNames newGPIO newADC newLEDC boardName options.
   ( KnownSymbol name,
     KnownNat pin,
-    AssertPinIsAvailable pin freePins,
+    AssertPinIsAvailable (PlatformToPinPlatform platform) pin gpioPins adcPins ledcPins,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins,
+    newGPIO ~ Remove pin gpioPins,
+    newADC ~ Remove pin adcPins,
+    newLEDC ~ Remove pin ledcPins,
     KnownSymbol (PlatformToSymbol platform),
     options ~ PlatformToOptions Output platform,
     KeyMapOptions options
   ) =>
   options ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames newFreePins)
+    (Board boardName names gpioPins adcPins ledcPins)
+    (Board boardName newNames newGPIO newADC newLEDC)
     (Output name platform)
 output opts = iliftFree (MkOutput @name @platform @pin opts Output)
 
 cover ::
-  forall name platform names freePins newNames boardName options.
+  forall name platform names freePins adcPins ledcPins newNames boardName options.
   ( KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names,
@@ -446,62 +490,64 @@ cover ::
   ) =>
   options ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
+    (Board boardName names freePins adcPins ledcPins)
+    (Board boardName newNames freePins adcPins ledcPins)
     (Cover name platform)
 cover opts = iliftFree (MkCover @name @platform opts Cover)
 
 button ::
-  forall name pin names freePins newNames newFreePins boardName.
+  forall name pin names gpioPins adcPins ledcPins newNames newGPIO newADC newLEDC boardName.
   ( KnownSymbol name,
     KnownNat pin,
-    AssertPinIsAvailable pin freePins,
+    AssertPinIsAvailable PinGPIO pin gpioPins adcPins ledcPins,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names,
-    newFreePins ~ Remove pin freePins
+    newGPIO ~ Remove pin gpioPins,
+    newADC ~ Remove pin adcPins,
+    newLEDC ~ Remove pin ledcPins
   ) =>
   BinarySensorOptions ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames newFreePins)
+    (Board boardName names gpioPins adcPins ledcPins)
+    (Board boardName newNames newGPIO newADC newLEDC)
     ()
 button opts = iliftFree (MkButton @name @pin opts ())
 
 number ::
-  forall name names freePins newNames boardName.
+  forall name names freePins adcPins ledcPins newNames boardName.
   ( KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
   NumberOptions ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
+    (Board boardName names freePins adcPins ledcPins)
+    (Board boardName newNames freePins adcPins ledcPins)
     (NumberComponent name)
 number opts = iliftFree $ MkNumber @name opts NumberComponent
 
 select ::
-  forall name names freePins newNames boardName.
+  forall name names freePins adcPins ledcPins newNames boardName.
   ( KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
   SelectOptions ->
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
+    (Board boardName names freePins adcPins ledcPins)
+    (Board boardName newNames freePins adcPins ledcPins)
     (Select name)
 select opts = iliftFree $ MkSelect @name opts Select
 
 textSensor ::
-  forall name names freePins newNames boardName.
+  forall name names freePins adcPins ledcPins newNames boardName.
   ( KnownSymbol name,
     AssertNameIsAvailable name names,
     newNames ~ Insert name names
   ) =>
   ESPM
-    (Board boardName names freePins)
-    (Board boardName newNames freePins)
+    (Board boardName names freePins adcPins ledcPins)
+    (Board boardName newNames freePins adcPins ledcPins)
     (TextSensor name)
 textSensor = iliftFree $ MkTextSensor @name TextSensor
 

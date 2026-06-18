@@ -29,6 +29,8 @@ data Platform
   | ADC
   | Template
 
+data PinPlatform = PinGPIO | PinADC | PinLEDC
+
 data RestoreMode
   = RESTORE_DEFAULT_OFF
   | RESTORE_DEFAULT_ON
@@ -64,6 +66,12 @@ type family PlatformToSymbol (platform :: Platform) :: Symbol where
   PlatformToSymbol Endstop = "endstop"
   PlatformToSymbol ADC = "adc"
   PlatformToSymbol Template = "template"
+
+type family PlatformToPinPlatform (p :: Platform) :: PinPlatform where
+  PlatformToPinPlatform GPIO = PinGPIO
+  PlatformToPinPlatform LEDC = PinLEDC
+  PlatformToPinPlatform ADC = PinADC
+  PlatformToPinPlatform _ = PinGPIO
 
 --------------------------------------------------------------------------------
 
@@ -206,7 +214,14 @@ newtype EncryptionKey = EncryptionKey {getEncryptionKey :: ByteString}
 
 --------------------------------------------------------------------------------
 
-data Board (boardName :: Symbol) (names :: [Symbol]) (pins :: [Nat]) = Board
+data
+  Board
+    (boardName :: Symbol)
+    (names :: [Symbol])
+    (gpioPins :: [Nat])
+    (adcPins :: [Nat])
+    (ledcPins :: [Nat])
+  = Board
 
 --------------------------------------------------------------------------------
 
@@ -233,11 +248,27 @@ type family AssertNameIsAvailable (x :: k) (xs :: [k]) :: Constraint where
       (Not (Elem x xs))
       (TypeError ('Text "Name not available: " :<>: 'ShowType x))
 
-type family AssertPinIsAvailable (x :: k) (xs :: [k]) :: Constraint where
-  AssertPinIsAvailable x xs =
+type family
+  AssertPinIsAvailable
+    (pp :: PinPlatform)
+    (pin :: Nat)
+    (gpioPins :: [Nat])
+    (adcPins :: [Nat])
+    (ledcPins :: [Nat]) ::
+    Constraint
+  where
+  AssertPinIsAvailable PinGPIO pin gpioPins _ _ =
     Assert
-      (Elem x xs)
-      (TypeError ('Text "Pin not available: " :<>: 'ShowType x))
+      (Elem pin gpioPins)
+      (TypeError ('Text "GPIO pin not available: " :<>: 'ShowType pin))
+  AssertPinIsAvailable PinADC pin _ adcPins _ =
+    Assert
+      (Elem pin adcPins)
+      (TypeError ('Text "ADC pin not available: " :<>: 'ShowType pin))
+  AssertPinIsAvailable PinLEDC pin _ _ ledcPins =
+    Assert
+      (Elem pin ledcPins)
+      (TypeError ('Text "LEDC pin not available: " :<>: 'ShowType pin))
 
 --------------------------------------------------------------------------------
 

@@ -142,9 +142,21 @@ switchExample = do
 
 data SomeESPM where
   SomeESPM ::
-    forall board boardName names pins board' boardName' names' pins'.
-    ( board ~ Board boardName names pins,
-      board' ~ Board boardName' names' pins',
+    forall
+      board
+      boardName
+      names
+      gpioPins
+      adcPins
+      ledcPins
+      board'
+      boardName'
+      names'
+      gpioPins'
+      adcPins'
+      ledcPins'.
+    ( board ~ Board boardName names gpioPins adcPins ledcPins,
+      board' ~ Board boardName' names' gpioPins' adcPins' ledcPins',
       KnownSymbol boardName,
       KnownSymbol boardName'
     ) =>

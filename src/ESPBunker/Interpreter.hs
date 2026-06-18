@@ -11,6 +11,7 @@ import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
 import Data.Yaml qualified as YAML
 import ESPBunker.Actions (interpretAction)
+import ESPBunker.Boards ()
 import ESPBunker.Components
 import ESPBunker.DSL
 import ESPBunker.KeyMapOptions (KeyMapOptions (..))
@@ -21,8 +22,10 @@ import Relude hiding (State, natVal, return)
 --------------------------------------------------------------------------------
 
 interpretESP ::
-  forall board board' boardName boardNames boardPins.
-  (board ~ Board boardName boardNames boardPins, KnownSymbol boardName) =>
+  forall board board' boardName boardNames boardGPIOs boardADCPins boardLEDCPins.
+  ( board ~ Board boardName boardNames boardGPIOs boardADCPins boardLEDCPins,
+    KnownSymbol boardName
+  ) =>
   ESPM board board' () -> [Node]
 interpretESP (Pure _) = []
 interpretESP (Free espf) = case espf of
@@ -226,7 +229,12 @@ interpretESP (Free espf) = case espf of
 --------------------------------------------------------------------------------
 
 generateYAML ::
+  forall boardName boardNames boardGPIOs boardADCPins boardLEDCPins board'.
   (KnownSymbol boardName) =>
-  ESPM (Board boardName boardNames boardPins) board' () -> ByteString
+  ESPM
+    (Board boardName boardNames boardGPIOs boardADCPins boardLEDCPins)
+    board'
+    () ->
+  ByteString
 generateYAML prog =
   let nodes = interpretESP prog in YAML.encode $ nodesToKeyMap nodes
