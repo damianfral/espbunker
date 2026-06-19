@@ -71,7 +71,7 @@ lightExample = do
   -- CWWW light
   cOut <- output @"c_out" @LEDC @3 def
   wOut <- output @"w_out" @LEDC @4 def
-  _ <-
+  cwwwLight <-
     light @"cwww_light" @CWWW def
       $ LightCWWWOptions
         { coldWhite = cOut,
@@ -84,14 +84,26 @@ lightExample = do
   r <- output @"r" @LEDC @5 def
   g <- output @"g" @LEDC @6 def
   b <- output @"b" @LEDC @7 def
-  _ <- light @"rgb_light" @RGB def $ LightRGBOptions {red = r, green = g, blue = b}
+  rgbLight <- light @"rgb_light" @RGB def $ LightRGBOptions {red = r, green = g, blue = b}
 
-  -- Physical switch controls the monochromatic light
+  -- Physical switches control each light
   _ <-
     switch @"mono_switch" @GPIO @0
       def
         { onTurnOn = turnOnL monoLight,
           onTurnOff = turnOffL monoLight
+        }
+  _ <-
+    switch @"cwww_switch" @GPIO @1
+      def
+        { onTurnOn = turnOnL cwwwLight,
+          onTurnOff = turnOffL cwwwLight
+        }
+  _ <-
+    switch @"rgb_switch" @GPIO @8
+      def
+        { onTurnOn = turnOnL rgbLight,
+          onTurnOff = turnOffL rgbLight
         }
   done
 
@@ -118,6 +130,11 @@ sensorExample :: ESPM ESP32C3 _ ()
 sensorExample = do
   _ <- commonSetup
   _ <- sensor @"adc_sensor" @ADC @3 def (SensorADCOptions (Just ATTEN_11DB))
+  ledOut <- output @"led_out" @LEDC @2 def
+  indicator <- light @"indicator" @Monochromatic def $ LightMonochromaticOptions ledOut
+  _ <-
+    switch @"led_switch" @GPIO @0
+      def {onTurnOn = turnOnL indicator, onTurnOff = turnOffL indicator}
   done
 
 switchExample :: ESPM ESP32C3 _ ()
@@ -203,6 +220,18 @@ sensorWithOptionsExample = do
           sensorInternal = Just False
         }
       (SensorADCOptions $ Just ATTEN_11DB)
+  statusText <- textSensor @"sensor_status"
+  _ <-
+    interval @"status_update"
+      $ def
+        { intervalInterval = Just "60s",
+          intervalAction = sampleTextSensor statusText
+        }
+  alarmOut <- output @"alarm_out" @LEDC @2 def
+  alarmLight <- light @"alarm_light" @Monochromatic def $ LightMonochromaticOptions alarmOut
+  _ <-
+    switch @"alarm_switch" @GPIO @0
+      def {onTurnOn = turnOnL alarmLight, onTurnOff = turnOffL alarmLight}
   done
 
 binarySensorWithOptionsExample :: ESPM ESP32C3 _ ()
@@ -278,35 +307,47 @@ switchWithOptionsExample = do
 coverWithOptionsExample :: ESPM ESP32C3 _ ()
 coverWithOptionsExample = do
   _ <- commonSetup
-  _ <-
+  windowCover <-
     cover @"template_cover" @Template
       def
-        { coverDeviceClass = Nothing, -- "shutter" might not be valid for template covers, use no device class
+        { coverDeviceClass = Nothing,
           coverIcon = Just "mdi:window-shutter",
           coverEntityCategory = Just "config",
           coverInternal = Just False,
           coverAssumedState = Just True,
           coverOptimistic = Just False
         }
+  _ <-
+    switch @"cover_switch" @GPIO @0
+      def
+        { onTurnOn = openCover windowCover,
+          onTurnOff = closeCover windowCover
+        }
   done
 
 numberWithOptionsExample :: ESPM ESP32C3 _ ()
 numberWithOptionsExample = do
   _ <- commonSetup
-  _ <-
+  brightness <-
     number @"brightness_control"
       def
         { numberMin = Just 0.0,
           numberMax = Just 100.0,
           numberStep = Just 5.0,
           numberUnit = Just "%",
-          numberDeviceClass = Nothing, -- "brightness" is not valid for number components
+          numberDeviceClass = Nothing,
           numberIcon = Just "mdi:brightness-5",
           numberEntityCategory = Just "config",
           numberInternal = Just False,
           numberMode = Just "slider",
           numberOptimistic = Just True
         }
+  _ <-
+    switch @"brightness_up" @GPIO @1
+      def {onTurnOn = incrementNumber brightness 10.0, onTurnOff = noAction}
+  _ <-
+    switch @"brightness_down" @GPIO @2
+      def {onTurnOn = decrementNumber brightness 10.0, onTurnOff = noAction}
   done
 
 selectExample :: ESPM ESP32C3 _ ()
@@ -321,6 +362,11 @@ selectExample = do
           selectEntityCategory = Just "config",
           selectOptimistic = Just True
         }
+  statusOut <- output @"status_out" @LEDC @2 def
+  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions statusOut
+  _ <-
+    switch @"mode_switch" @GPIO @0
+      def {onTurnOn = turnOnL statusLight, onTurnOff = turnOffL statusLight}
   done
 
 -- Christmas lights and NFC example
@@ -351,10 +397,12 @@ christmasExample = do
 
   -- I2C configuration for NFC
   _ <- i2c @"nfc_i2c" $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
-
-  -- Placeholder: PN532 I2C component (I2C is a configuration component without a return value)
-  -- Note: Since I don't have an action to reference the NFC reader directly, I'll just set up the I2C
-  -- For demonstration purposes only, this would connect to something that can be updated/suspended
+  _ <-
+    pn532i2c @"nfc_reader"
+      def
+        { pn532I2CId = Just "nfc_i2c",
+          pn532I2COnTag = Just (log "NFC tag detected")
+        }
 
   -- Scripts for relay sequence
   relaySequenceOnRightScript <- script @"relay_sequence_on_right" $ do
@@ -535,6 +583,11 @@ priorityExample = do
   _ <- wifi $ def & addNetwork "test-ssid" "test-password"
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
+  ledOut <- output @"led_out" @LEDC @2 def
+  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  _ <-
+    switch @"boot_switch" @GPIO @0
+      def {onTurnOn = turnOnL statusLight, onTurnOff = turnOffL statusLight}
   done
 
 buttonExample :: ESPM ESP32C3 _ ()
@@ -570,6 +623,12 @@ apiExample = do
   _ <- api $ EncryptionKey "0123456789abcdef0123456789abcdef"
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
+  ledOut <- output @"led_out" @LEDC @2 def
+  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  _ <-
+    binarySensor @"motion_sensor" @GPIO @0
+      def {onPress = turnOnL statusLight, onRelease = turnOffL statusLight}
+      def
   done
 
 otaMultipleExample :: ESPM ESP32C3 _ ()
@@ -580,6 +639,12 @@ otaMultipleExample = do
   _ <- wifi $ def & addNetwork "ssid" "password"
   _ <- ota [OTAOptions "esphome" "password"]
   _ <- webServer 80
+  ledOut <- output @"led_out" @LEDC @2 def
+  resetLight <- light @"reset_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  _ <-
+    binarySensor @"reset_btn" @GPIO @0
+      def {onPress = turnOnL resetLight, onRelease = turnOffL resetLight}
+      def
   done
 
 switchWithAllOptionsExample :: ESPM ESP32C3 _ ()
@@ -588,12 +653,14 @@ switchWithAllOptionsExample = do
   _ <- esphome @"switch-all-options" def
   _ <- logger
   _ <- wifi $ def & addNetwork "ssid" "password"
+  lampOut <- output @"lamp_out" @LEDC @2 def
+  lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions lampOut
   _ <-
     switch @"full_featured_switch" @GPIO @10
       def
         { switchRestoreMode = Just ALWAYS_ON,
-          onTurnOn = log "Switch turned ON",
-          onTurnOff = log "Switch turned OFF",
+          onTurnOn = turnOnL lamp,
+          onTurnOff = turnOffL lamp,
           switchDeviceClass = Just DeviceClassOutlet,
           switchIcon = Just "mdi:toggle-switch",
           switchEntityCategory = Just "config",
