@@ -270,6 +270,31 @@ type family
       (Elem pin ledcPins)
       (TypeError ('Text "LEDC pin not available: " :<>: 'ShowType pin))
 
+type family GetNames (board :: Type) :: [Symbol] where
+  GetNames (Board _ names _ _ _) = names
+
+type family GetGPIOPins (board :: Type) :: [Nat] where
+  GetGPIOPins (Board _ _ gpioPins _ _) = gpioPins
+
+type family GetADCPins (board :: Type) :: [Nat] where
+  GetADCPins (Board _ _ _ adcPins _) = adcPins
+
+type family GetLEDCPins (board :: Type) :: [Nat] where
+  GetLEDCPins (Board _ _ _ _ ledcPins) = ledcPins
+
+type family AddPinComponent (name :: Symbol) (pin :: Nat) (board :: Type) :: Type where
+  AddPinComponent name pin (Board boardName names gpioPins adcPins ledcPins) =
+    Board
+      boardName
+      (Insert name names)
+      (Remove pin gpioPins)
+      (Remove pin adcPins)
+      (Remove pin ledcPins)
+
+type family AddComponent (name :: Symbol) (board :: Type) :: Type where
+  AddComponent name (Board boardName names gpioPins adcPins ledcPins) =
+    Board boardName (Insert name names) gpioPins adcPins ledcPins
+
 --------------------------------------------------------------------------------
 
 pinToText :: forall pin. (KnownNat pin) => Text
