@@ -160,6 +160,42 @@ log t = liftF $ LogMsg t ()
 delay :: Int -> ESPAction ()
 delay ms = liftF $ Delay ms ()
 
+sampleSensor :: (KnownSymbol name) => Sensor name -> ESPAction ()
+sampleSensor s = liftF $ SampleSensor s ()
+
+sampleTextSensor :: (KnownSymbol name) => TextSensor name -> ESPAction ()
+sampleTextSensor s = liftF $ SampleTextSensor s ()
+
+openCover :: (KnownSymbol name) => Cover name platform -> ESPAction ()
+openCover c = liftF $ OpenCover c ()
+
+closeCover :: (KnownSymbol name) => Cover name platform -> ESPAction ()
+closeCover c = liftF $ CloseCover c ()
+
+stopCover :: (KnownSymbol name) => Cover name platform -> ESPAction ()
+stopCover c = liftF $ StopCover c ()
+
+toggleSwitch :: (KnownSymbol name) => Switch name platform pin -> ESPAction ()
+toggleSwitch s = liftF $ ToggleSwitch s ()
+
+turnOnOutput :: (KnownSymbol name) => Output name platform -> ESPAction ()
+turnOnOutput o = liftF $ TurnOnOutput o ()
+
+turnOffOutput :: (KnownSymbol name) => Output name platform -> ESPAction ()
+turnOffOutput o = liftF $ TurnOffOutput o ()
+
+setOutputValue :: (KnownSymbol name) => Output name platform -> Double -> ESPAction ()
+setOutputValue o v = liftF $ SetOutputValue o v ()
+
+setNumber :: (KnownSymbol name) => NumberComponent name -> Double -> ESPAction ()
+setNumber n v = liftF $ SetNumber n v ()
+
+incrementNumber :: (KnownSymbol name) => NumberComponent name -> Double -> ESPAction ()
+incrementNumber n v = liftF $ IncrementNumber n v ()
+
+decrementNumber :: (KnownSymbol name) => NumberComponent name -> Double -> ESPAction ()
+decrementNumber n v = liftF $ DecrementNumber n v ()
+
 --------------------------------------------------------------------------------
 
 interpretAction :: Free ESPActionF () -> Array
