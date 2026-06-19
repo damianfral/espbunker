@@ -18,16 +18,16 @@ import Relude hiding ((>>=))
 -- | A common setup for all the examples.
 commonSetup :: _
 commonSetup = do
-  _ <- board @ESP32C3
-  _ <- esphome @"esphome-bunker" def
-  _ <- logger
-  _ <-
-    wifi
-      $ def
-      & addNetwork "my-ssid" "my-password"
-      & ap "my-ap-ssid" "my-ap-password"
-  _ <- webServer 80
-  _ <- ota [OTAOptions "esphome" "pass"]
+  void $ board @ESP32C3
+  esphome @"esphome-bunker" def
+  logger
+  void
+    $ wifi
+    $ def
+    & addNetwork "my-ssid" "my-password"
+    & ap "my-ap-ssid" "my-ap-password"
+  void $ webServer 80
+  void $ ota [OTAOptions "esphome" "pass"]
   done
 
 binarySensorExample :: ESPM ESP32C3 _ ()
@@ -66,7 +66,8 @@ lightExample = do
   _ <- commonSetup
   -- Monochromatic light
   out1 <- output @"out1" @LEDC @2 def
-  monoLight <- light @"mono_light" @Monochromatic def $ LightMonochromaticOptions out1
+  monoLight <-
+    light @"mono_light" @Monochromatic def $ LightMonochromaticOptions out1
 
   -- CWWW light
   cOut <- output @"c_out" @LEDC @3 def
@@ -84,27 +85,19 @@ lightExample = do
   r <- output @"r" @LEDC @5 def
   g <- output @"g" @LEDC @6 def
   b <- output @"b" @LEDC @7 def
-  rgbLight <- light @"rgb_light" @RGB def $ LightRGBOptions {red = r, green = g, blue = b}
+  rgbLight <-
+    light @"rgb_light" @RGB def $ LightRGBOptions {red = r, green = g, blue = b}
 
   -- Physical switches control each light
   _ <-
     switch @"mono_switch" @GPIO @0
-      def
-        { onTurnOn = turnOnL monoLight,
-          onTurnOff = turnOffL monoLight
-        }
+      def {onTurnOn = turnOnL monoLight, onTurnOff = turnOffL monoLight}
   _ <-
     switch @"cwww_switch" @GPIO @1
-      def
-        { onTurnOn = turnOnL cwwwLight,
-          onTurnOff = turnOffL cwwwLight
-        }
+      def {onTurnOn = turnOnL cwwwLight, onTurnOff = turnOffL cwwwLight}
   _ <-
     switch @"rgb_switch" @GPIO @8
-      def
-        { onTurnOn = turnOnL rgbLight,
-          onTurnOff = turnOffL rgbLight
-        }
+      def {onTurnOn = turnOnL rgbLight, onTurnOff = turnOffL rgbLight}
   done
 
 outputExample :: ESPM ESP32C3 _ ()
@@ -120,10 +113,7 @@ outputExample = do
         turnOffL lamp
   _ <-
     switch @"light_switch" @GPIO @0
-      def
-        { onTurnOn = onAction,
-          onTurnOff = offAction
-        }
+      $ def {onTurnOn = onAction, onTurnOff = offAction}
   done
 
 sensorExample :: ESPM ESP32C3 _ ()
@@ -131,7 +121,8 @@ sensorExample = do
   _ <- commonSetup
   _ <- sensor @"adc_sensor" @ADC @3 def (SensorADCOptions (Just ATTEN_11DB))
   ledOut <- output @"led_out" @LEDC @2 def
-  indicator <- light @"indicator" @Monochromatic def $ LightMonochromaticOptions ledOut
+  indicator <-
+    light @"indicator" @Monochromatic def $ LightMonochromaticOptions ledOut
   _ <-
     switch @"led_switch" @GPIO @0
       def {onTurnOn = turnOnL indicator, onTurnOff = turnOffL indicator}
@@ -143,10 +134,10 @@ switchExample = do
   out <- output @"lamp_out" @LEDC @2 def
   lamp <- light @"lamp" @Monochromatic def $ LightMonochromaticOptions out
   let onAction = do
-        log "Switch ON — lighting lamp"
+        log "Switch ON lighting lamp"
         turnOnL lamp
       offAction = do
-        log "Switch OFF — extinguishing lamp"
+        log "Switch OFF extinguishing lamp"
         turnOffL lamp
   _ <-
     switch @"switch_with_restore" @GPIO @0
@@ -156,28 +147,6 @@ switchExample = do
           onTurnOff = offAction
         }
   done
-
-data SomeESPM where
-  SomeESPM ::
-    forall
-      board
-      boardName
-      names
-      gpioPins
-      adcPins
-      ledcPins
-      board'
-      boardName'
-      names'
-      gpioPins'
-      adcPins'
-      ledcPins'.
-    ( board ~ Board boardName names gpioPins adcPins ledcPins,
-      board' ~ Board boardName' names' gpioPins' adcPins' ledcPins',
-      KnownSymbol boardName,
-      KnownSymbol boardName'
-    ) =>
-    ESPM board board' () -> SomeESPM
 
 scriptExample :: ESPM ESP32C3 _ ()
 scriptExample = do
@@ -228,7 +197,9 @@ sensorWithOptionsExample = do
           intervalAction = sampleTextSensor statusText
         }
   alarmOut <- output @"alarm_out" @LEDC @2 def
-  alarmLight <- light @"alarm_light" @Monochromatic def $ LightMonochromaticOptions alarmOut
+  alarmLight <-
+    light @"alarm_light" @Monochromatic def
+      $ LightMonochromaticOptions alarmOut
   _ <-
     switch @"alarm_switch" @GPIO @0
       def {onTurnOn = turnOnL alarmLight, onTurnOff = turnOffL alarmLight}
@@ -238,7 +209,8 @@ binarySensorWithOptionsExample :: ESPM ESP32C3 _ ()
 binarySensorWithOptionsExample = do
   _ <- commonSetup
   out <- output @"light_out" @LEDC @0 def
-  lamp <- light @"motion_lamp" @Monochromatic def $ LightMonochromaticOptions out
+  lamp <-
+    light @"motion_lamp" @Monochromatic def $ LightMonochromaticOptions out
   let onMotion = do
         log "Motion detected! Turning on light for 10s"
         turnOnL lamp
@@ -363,7 +335,9 @@ selectExample = do
           selectOptimistic = Just True
         }
   statusOut <- output @"status_out" @LEDC @2 def
-  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions statusOut
+  statusLight <-
+    light @"status_light" @Monochromatic def
+      $ LightMonochromaticOptions statusOut
   _ <-
     switch @"mode_switch" @GPIO @0
       def {onTurnOn = turnOnL statusLight, onTurnOff = turnOffL statusLight}
@@ -396,7 +370,9 @@ christmasExample = do
   relay7 <- switch @"relay_7" @GPIO @20 def {switchInverted = Just True}
 
   -- I2C configuration for NFC
-  _ <- i2c @"nfc_i2c" $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
+  _ <-
+    i2c @"nfc_i2c"
+      $ def {i2cSda = "GPIO2", i2cScl = "GPIO3", i2cScan = Just True}
   _ <-
     pn532i2c @"nfc_reader"
       def
@@ -480,50 +456,15 @@ christmasExample = do
   relaySequenceScript <- script @"relay_sequence" $ do
     log "Starting relay activation sequence..."
 
-    runScript relaySequenceOnRightScript
-    delay 250
-
-    runScript relaySequenceOffRightScript
-    delay 250
-
-    runScript relaySequenceOnLeftScript
-    delay 250
-
-    runScript relaySequenceOffLeftScript
-    delay 250
-
-    runScript relaySequenceOnRightScript
-    delay 250
-
-    runScript relaySequenceOffLeftScript
-    delay 250
-
-    runScript relaySequenceOnRightScript
-    delay 250
-
-    runScript relaySequenceOffRightScript
-    delay 250
-
-    runScript relaySequenceOnLeftScript
-    delay 250
-
-    runScript relaySequenceOffLeftScript
-    delay 250
-
-    runScript relaySequenceOnRightScript
-    delay 250
-
-    runScript relaySequenceOffRightScript
-    delay 250
-
-    runScript relaySequenceOnLeftScript
-    delay 250
-
-    runScript relaySequenceOffRightScript
-    delay 250
-
-    runScript relaySequenceOnLeftScript
-    delay 250
+    replicateM_ 3 $ do
+      runScript relaySequenceOnRightScript
+      delay 250
+      runScript relaySequenceOffRightScript
+      delay 250
+      runScript relaySequenceOnLeftScript
+      delay 250
+      runScript relaySequenceOffLeftScript
+      delay 250
 
     log "All LED relays are ON."
     delay 25000
@@ -578,13 +519,17 @@ christmasExample = do
 priorityExample :: ESPM ESP32C3 _ ()
 priorityExample = do
   _ <- board @ESP32C3
-  _ <- esphome @"priority-test" $ addBootAction (Just 500) (log "Starting up") def
+  _ <-
+    esphome @"priority-test"
+      $ addBootAction (Just 500) (log "Starting up") def
   _ <- logger
   _ <- wifi $ def & addNetwork "test-ssid" "test-password"
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
   ledOut <- output @"led_out" @LEDC @2 def
-  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  statusLight <-
+    light @"status_light" @Monochromatic def
+      $ LightMonochromaticOptions ledOut
   _ <-
     switch @"boot_switch" @GPIO @0
       def {onTurnOn = turnOnL statusLight, onTurnOff = turnOffL statusLight}
@@ -624,7 +569,8 @@ apiExample = do
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
   ledOut <- output @"led_out" @LEDC @2 def
-  statusLight <- light @"status_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  statusLight <-
+    light @"status_light" @Monochromatic def $ LightMonochromaticOptions ledOut
   _ <-
     binarySensor @"motion_sensor" @GPIO @0
       def {onPress = turnOnL statusLight, onRelease = turnOffL statusLight}
@@ -640,7 +586,8 @@ otaMultipleExample = do
   _ <- ota [OTAOptions "esphome" "password"]
   _ <- webServer 80
   ledOut <- output @"led_out" @LEDC @2 def
-  resetLight <- light @"reset_light" @Monochromatic def $ LightMonochromaticOptions ledOut
+  resetLight <-
+    light @"reset_light" @Monochromatic def $ LightMonochromaticOptions ledOut
   _ <-
     binarySensor @"reset_btn" @GPIO @0
       def {onPress = turnOnL resetLight, onRelease = turnOffL resetLight}
@@ -672,6 +619,28 @@ switchWithAllOptionsExample = do
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
   done
+
+data SomeESPM where
+  SomeESPM ::
+    forall
+      board
+      boardName
+      names
+      gpioPins
+      adcPins
+      ledcPins
+      board'
+      boardName'
+      names'
+      gpioPins'
+      adcPins'
+      ledcPins'.
+    ( board ~ Board boardName names gpioPins adcPins ledcPins,
+      board' ~ Board boardName' names' gpioPins' adcPins' ledcPins',
+      KnownSymbol boardName,
+      KnownSymbol boardName'
+    ) =>
+    ESPM board board' () -> SomeESPM
 
 examples :: [(Text, SomeESPM)]
 examples =
