@@ -3,4 +3,5 @@
 
 module ESPBunker.Interpreter (module X) where
 
+import ESPBunker.Interpreter.Report as X
 import ESPBunker.Interpreter.YAML as X

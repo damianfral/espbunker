@@ -7,4 +7,6 @@ import ESPBunker.Examples
 import Relude
 
 main :: IO ()
-main = putBSLn $ generateYAML switchExample
+main = do
+  putBSLn $ generateYAML switchExample
+  putTextLn $ generateReport switchExample

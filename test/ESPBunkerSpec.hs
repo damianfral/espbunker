@@ -13,7 +13,7 @@ module ESPBunkerSpec where
 import Control.Monad.Free (liftF)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified as KM
-import ESPBunker (generateYAML)
+import ESPBunker (generateReport, generateYAML)
 import ESPBunker.Actions
 import ESPBunker.Components
 import ESPBunker.DSL (Node (NodeArray, NodeObject), nodesToKeyMap)
@@ -30,6 +30,15 @@ setupSpec = setupAround $ tempDirSetupFunc "espbunker-example"
 spec :: Spec
 spec = do
   describe "ESPBunker" $ setupSpec $ forM_ examples $ uncurry testExample
+
+  describe "generateReport" $ do
+    it "shows the light -> output link inline" $ do
+      let report = generateReport switchWithAllOptionsExample
+      toString report `shouldContain` "⟶ lamp_out"
+
+    it "shows the cover -> endstop link inline" $ do
+      let report = generateReport coverExample
+      toString report `shouldContain` "⟶ close_endstop"
 
   describe "interpretAction" $ do
     it "noAction produces empty array" $ do
