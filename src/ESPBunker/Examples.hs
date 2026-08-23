@@ -21,14 +21,13 @@ commonSetup = do
   void $ board @ESP32C3
   esphome @"esphome-bunker" def
   logger
-  void
-    $ wifi
-    $ def
-    & addNetwork "my-ssid" "my-password"
-    & ap "my-ap-ssid" "my-ap-password"
+  let wifiOptions =
+        def
+          & addNetwork "my-ssid" "my-password"
+          & ap "my-ap-ssid" "my-ap-password"
+  void $ wifi wifiOptions
   void $ webServer 80
   void $ ota [OTAOptions "esphome" "pass"]
-  done
 
 binarySensorExample :: ESPM ESP32C3 _ ()
 binarySensorExample = do
@@ -40,7 +39,7 @@ binarySensorExample = do
         delay 300
         turnOffL lamp
         delay 300
-  _ <- binarySensor @"btn1" @GPIO @1 def {onPress = blinkScript} Nothing
+  _ <- binarySensor @"sensor1" @GPIO @1 def {onPress = blinkScript} Nothing
   done
 
 coverExample :: ESPM ESP32C3 _ ()
@@ -616,9 +615,8 @@ switchWithAllOptionsExample = do
           switchInterlockWaitTime = Nothing,
           switchInverted = Just False
         }
-  _ <- ota [OTAOptions "esphome" "pass"]
-  _ <- webServer 80
-  done
+  void $ ota [OTAOptions "esphome" "pass"]
+  void $ webServer 80
 
 data SomeESPM where
   SomeESPM ::
