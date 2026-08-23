@@ -7,6 +7,11 @@ import ESPBunker.Examples
 import Relude
 
 main :: IO ()
-main = do
-  putBSLn $ generateYAML switchExample
-  putTextLn $ generateReport switchExample
+main = forM_ examples $ \(name, SomeESPM example) -> do
+  putStrLn ""
+  putTextLn name
+  putStrLn ""
+  putBSLn $ generateYAML example
+  putStrLn ""
+  putTextLn $ generateReport example
+  putStrLn ""
