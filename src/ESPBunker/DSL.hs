@@ -35,10 +35,7 @@ type family PlatformToOptions component platform where
   PlatformToOptions Sensor ADC = SensorADCOptions
 
 data ESPF :: Type -> Type -> Type -> Type where
-  MkBoard ::
-    forall board names gpioPins adcPins ledcPins boardName next.
-    (board ~ Board boardName names gpioPins adcPins ledcPins) =>
-    next -> ESPF board board next
+  MkBoard :: next -> ESPF board board next
   MkESPHome ::
     forall name next board.
     (KnownSymbol name) =>
@@ -191,7 +188,7 @@ instance IxFunctor ESPF where
   imap f (MkLogger next) = MkLogger $ f next
   imap f (MkBinarySensor @name @platform @pin options platformOptions next) =
     MkBinarySensor @name @platform @pin options platformOptions $ f next
-  imap f (MkBoard @board next) = MkBoard @board $ f next
+  imap f (MkBoard next) = MkBoard $ f next
   imap f (MkButton @name @pin options next) =
     MkButton @name @pin options $ f next
   imap f (MkCover @name @platform opts next) =
@@ -222,11 +219,8 @@ type ESPM from to a = IxFree ESPF from to a
 
 --------------------------------------------------------------------------------
 
-board ::
-  forall board names gpioPins adcPins ledcPins boardName.
-  (board ~ Board boardName names gpioPins adcPins ledcPins) =>
-  ESPM board board (Board boardName names gpioPins adcPins ledcPins)
-board = iliftFree $ MkBoard @board Board
+board :: ESPM board board ()
+board = iliftFree $ MkBoard ()
 
 esphome ::
   forall name board. (KnownSymbol name) => ESPHomeOptions -> ESPM board board ()
