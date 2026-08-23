@@ -2,6 +2,7 @@
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE TypeAbstractions #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module ESPBunker.KeyMapOptions where

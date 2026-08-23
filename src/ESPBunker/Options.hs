@@ -1,5 +1,6 @@
 {-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeAbstractions #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module ESPBunker.Options where

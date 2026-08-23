@@ -5,15 +5,20 @@ version: 1.0.1
 license: MIT
 
 ghc-options:
-  - -fwrite-ide-info
+  - -fshow-warning-groups
+  - -Werror
   - -Wall
-  - -Wincomplete-uni-patterns
-  - -Wincomplete-record-updates
-  - -Wpartial-fields
-  - -Widentities
-  - -Wredundant-constraints
+  - -Wcompat
   - -Wcpp-undef
-  - -Wunused-packages
+  - -Widentities
+  - -Wincomplete-record-updates
+  - -Wincomplete-uni-patterns
+  - -Wpartial-fields
+  - -Wredundant-constraints
+  - -fwrite-ide-info
+  - -funbox-strict-fields
+  - -flate-dmd-anal
+  - -fno-omit-interface-pragmas
 
 dependencies:
   - aeson

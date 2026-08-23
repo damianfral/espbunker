@@ -1,6 +1,7 @@
 {-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE OverloadedLists #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeAbstractions #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module ESPBunker.Actions where

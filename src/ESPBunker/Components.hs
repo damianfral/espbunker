@@ -1,6 +1,7 @@
 {-# LANGUAGE GHC2024 #-}
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TypeAbstractions #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE UndecidableInstances #-}
 {-# LANGUAGE NoImplicitPrelude #-}
