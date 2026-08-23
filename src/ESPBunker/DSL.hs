@@ -131,7 +131,7 @@ data ESPF :: Type -> Type -> Type -> Type where
       KnownSymbol (PlatformToSymbol platform),
       KnownNat pin,
       AssertPinIsAvailable
-        (PlatformToPinPlatform platform)
+        (OutputPinPlatform platform)
         pin
         (GetGPIOPins board)
         (GetADCPins board)
@@ -314,7 +314,7 @@ output ::
   ( KnownSymbol name,
     KnownNat pin,
     AssertPinIsAvailable
-      (PlatformToPinPlatform platform)
+      (OutputPinPlatform platform)
       pin
       (GetGPIOPins board)
       (GetADCPins board)

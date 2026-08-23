@@ -68,11 +68,9 @@ type family PlatformToSymbol (platform :: Platform) :: Symbol where
   PlatformToSymbol ADC = "adc"
   PlatformToSymbol Template = "template"
 
-type family PlatformToPinPlatform (p :: Platform) :: PinPlatform where
-  PlatformToPinPlatform GPIO = PinGPIO
-  PlatformToPinPlatform LEDC = PinLEDC
-  PlatformToPinPlatform ADC = PinADC
-  PlatformToPinPlatform _ = PinGPIO
+type family OutputPinPlatform (p :: Platform) :: PinPlatform where
+  OutputPinPlatform GPIO = PinGPIO
+  OutputPinPlatform LEDC = PinLEDC
 
 --------------------------------------------------------------------------------
 
