@@ -229,27 +229,11 @@ interpretAction = execWriter . foldFree go
     go (ComponentSuspend cID next) = do
       tell [Object $ "component.suspend" .= cID]
       pure next
-    go (IfSwitchIsOn @name _switch thenAction elseAction next) = do
-      let n = symbolVal (Proxy @name)
-          conditionPart = object ["switch.is_on" .= snakeCase n]
-          thenPart = interpretAction thenAction
-          elseMaybe = maybe [] (actionBranch "else") elseAction
-          ifObject =
-            object
-              $ ["condition" .= conditionPart, "then" .= thenPart]
-              <> elseMaybe
-      tell [object ["if" .= ifObject]]
+    go (IfSwitchIsOn switch thenAction elseAction next) = do
+      tell $ ifAction "switch.is_on" switch thenAction elseAction
       pure next
-    go (IfSwitchIsOff @name _switch thenAction elseAction next) = do
-      let n = symbolVal (Proxy @name)
-          conditionPart = object ["switch.is_off" .= snakeCase n]
-          thenPart = interpretAction thenAction
-          elseMaybe = maybe [] (actionBranch "else") elseAction
-          ifObject =
-            object
-              $ ["condition" .= conditionPart, "then" .= thenPart]
-              <> elseMaybe
-      tell [object ["if" .= ifObject]]
+    go (IfSwitchIsOff switch thenAction elseAction next) = do
+      tell $ ifAction "switch.is_off" switch thenAction elseAction
       pure next
     go (RunScript @name _script next) = do
       tell [Object $ "script.execute" .= snakeCase (symbolVal (Proxy @name))]
@@ -298,3 +282,18 @@ actionBranch :: Key -> ESPAction () -> [(Key, Value)]
 actionBranch key action =
   let interpreted = interpretAction action
    in [key .= interpreted | not $ null interpreted]
+
+ifAction ::
+  forall name platform pin.
+  (KnownSymbol name) =>
+  Key ->
+  Switch name platform pin ->
+  ESPAction () ->
+  Maybe (ESPAction ()) ->
+  Array
+ifAction condName _switch thenAction elseAction =
+  let n = symbolVal (Proxy @name)
+      conditionPart = object [condName .= snakeCase n]
+      thenPart = interpretAction thenAction
+      elseMaybe = maybe [] (actionBranch "else") elseAction
+   in [object ["if" .= object (["condition" .= conditionPart, "then" .= thenPart] <> elseMaybe)]]
