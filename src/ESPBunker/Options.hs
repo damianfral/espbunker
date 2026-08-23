@@ -10,7 +10,7 @@ import ESPBunker.Actions (ESPAction, noAction)
 import ESPBunker.Components
 import ESPBunker.DeviceClass (DeviceClass)
 import GHC.TypeLits (KnownSymbol)
-import Relude hiding (State, natVal, return)
+import Relude
 
 --------------------------------------------------------------------------------
 

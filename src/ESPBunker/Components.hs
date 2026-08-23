@@ -12,9 +12,9 @@ import Data.Aeson
 import Data.Aeson.KeyMap qualified as KM
 import Data.Default (Default (..))
 import Data.Type.Bool (Not)
-import GHC.TypeError (Assert)
-import GHC.TypeLits
-import Relude hiding (State, natVal)
+import GHC.TypeError (Assert, ErrorMessage (..), TypeError)
+import GHC.TypeLits (Symbol)
+import Relude
 
 --------------------------------------------------------------------------------
 

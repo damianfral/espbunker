@@ -18,7 +18,7 @@ import ESPBunker.Components (Credentials (..), EncryptionKey (..))
 import ESPBunker.DeviceClass (DeviceClass)
 import ESPBunker.Options
 import GHC.TypeLits (symbolVal)
-import Relude hiding (State, natVal, return)
+import Relude
 
 --------------------------------------------------------------------------------
 

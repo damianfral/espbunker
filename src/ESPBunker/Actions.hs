@@ -13,7 +13,7 @@ import Data.Aeson.Casing (snakeCase)
 import Data.Proxy
 import ESPBunker.Components
 import GHC.TypeLits
-import Relude hiding (State, natVal, return)
+import Relude
 
 --------------------------------------------------------------------------------
 
@@ -240,11 +240,8 @@ interpretAction = execWriter . foldFree go
       tell [Object $ "script.execute" .= snakeCase (symbolVal (Proxy @name))]
       pure next
     go (SetNumber @name _number val next) = do
-      tell
-        [ Object $ "number.set"
-            .= object
-              ["id" .= snakeCase (symbolVal (Proxy @name)), "value" .= val]
-        ]
+      let obj = ["id" .= snakeCase (symbolVal (Proxy @name)), "value" .= val]
+      tell [Object $ "number.set" .= object obj]
       pure next
     go (IncrementNumber @name _number _val next) = do
       tell [Object $ "number.increment" .= snakeCase (symbolVal (Proxy @name))]
@@ -297,4 +294,5 @@ ifAction condName _switch thenAction elseAction =
       conditionPart = object [condName .= snakeCase n]
       thenPart = interpretAction thenAction
       elseMaybe = maybe [] (actionBranch "else") elseAction
-   in [object ["if" .= object (["condition" .= conditionPart, "then" .= thenPart] <> elseMaybe)]]
+      ifBody = ["condition" .= conditionPart, "then" .= thenPart] <> elseMaybe
+   in [object ["if" .= object ifBody]]

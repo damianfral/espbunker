@@ -17,7 +17,7 @@ import ESPBunker.DeviceClass (DeviceClass)
 import ESPBunker.KeyMapOptions (KeyMapOptions (..))
 import ESPBunker.Options
 import GHC.TypeLits
-import Relude hiding (State, natVal, return, (>>=))
+import Relude
 
 --------------------------------------------------------------------------------
 
