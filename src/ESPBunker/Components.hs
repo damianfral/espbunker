@@ -283,6 +283,9 @@ type family GetADCPins (board :: Type) :: [Nat] where
 type family GetLEDCPins (board :: Type) :: [Nat] where
   GetLEDCPins (Board _ _ _ _ ledcPins) = ledcPins
 
+type family GetBoardName (board :: Type) :: Symbol where
+  GetBoardName (Board name _ _ _ _) = name
+
 type family AddPinComponent (name :: Symbol) (pin :: Nat) (board :: Type) :: Type where
   AddPinComponent name pin (Board boardName names gpioPins adcPins ledcPins) =
     Board

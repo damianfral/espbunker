@@ -31,12 +31,9 @@ ifoldFree _ (Pure _) = pure ()
 ifoldFree alg (Free fx) = alg $ imap (ifoldFree alg) fx
 
 interpretESP ::
-  forall board' boardName boardNames boardGPIOs boardADCPins boardLEDCPins.
-  (KnownSymbol boardName) =>
-  ESPM
-    (Board boardName boardNames boardGPIOs boardADCPins boardLEDCPins)
-    board'
-    () ->
+  forall board board'.
+  (KnownSymbol (GetBoardName board)) =>
+  ESPM board board' () ->
   [Node]
 interpretESP = execWriter . ifoldFree go
   where
@@ -47,7 +44,7 @@ interpretESP = execWriter . ifoldFree go
           espHomeNode = NodeObject "esphome" espHomeOpts
       tell [espHomeNode] >> next
     go (MkBoard next) = do
-      let boardName = symbolVal (Proxy @boardName)
+      let boardName = symbolVal (Proxy @(GetBoardName board))
           boardSubnode =
             [ "board" .= boardName,
               "framework"
@@ -235,12 +232,9 @@ interpretESP = execWriter . ifoldFree go
 --------------------------------------------------------------------------------
 
 generateYAML ::
-  forall boardName boardNames boardGPIOs boardADCPins boardLEDCPins board'.
-  (KnownSymbol boardName) =>
-  ESPM
-    (Board boardName boardNames boardGPIOs boardADCPins boardLEDCPins)
-    board'
-    () ->
+  forall board board'.
+  (KnownSymbol (GetBoardName board)) =>
+  ESPM board board' () ->
   ByteString
 generateYAML prog =
   let nodes = interpretESP prog in YAML.encode $ nodesToKeyMap nodes

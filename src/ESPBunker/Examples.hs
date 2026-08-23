@@ -622,24 +622,8 @@ switchWithAllOptionsExample = do
 
 data SomeESPM where
   SomeESPM ::
-    forall
-      board
-      boardName
-      names
-      gpioPins
-      adcPins
-      ledcPins
-      board'
-      boardName'
-      names'
-      gpioPins'
-      adcPins'
-      ledcPins'.
-    ( board ~ Board boardName names gpioPins adcPins ledcPins,
-      board' ~ Board boardName' names' gpioPins' adcPins' ledcPins',
-      KnownSymbol boardName,
-      KnownSymbol boardName'
-    ) =>
+    forall board board'.
+    (KnownSymbol (GetBoardName board)) =>
     ESPM board board' () -> SomeESPM
 
 examples :: [(Text, SomeESPM)]
