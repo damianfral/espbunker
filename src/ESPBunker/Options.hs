@@ -58,6 +58,17 @@ instance Default BinarySensorOptions where
       Nothing
       Nothing
 
+data ButtonOptions = ButtonOptions
+  { buttonOnPress :: ESPAction (),
+    buttonIcon :: Maybe Text,
+    buttonEntityCategory :: Maybe Text,
+    buttonInternal :: Maybe Bool
+  }
+  deriving (Generic)
+
+instance Default ButtonOptions where
+  def = ButtonOptions noAction Nothing Nothing Nothing
+
 --------------------------------------------------------------------------------
 
 data CoverOptions = CoverOptions

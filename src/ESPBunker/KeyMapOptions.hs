@@ -87,6 +87,16 @@ instance KeyMapOptions BinarySensorOptions where
           "internal" .=? binarySensorInternal
         ]
 
+instance KeyMapOptions ButtonOptions where
+  toKeyMap ButtonOptions {..} =
+    fromList
+      $ catMaybes
+        [ actionField "on_press" buttonOnPress,
+          "icon" .=? buttonIcon,
+          "entity_category" .=? buttonEntityCategory,
+          "internal" .=? buttonInternal
+        ]
+
 instance KeyMapOptions LightRGBOptions where
   toKeyMap (LightRGBOptions @red @green @blue _red _green _blue) =
     [ "red" .= symbolVal (Proxy @red),

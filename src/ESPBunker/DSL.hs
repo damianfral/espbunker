@@ -163,7 +163,7 @@ data ESPF :: Type -> Type -> Type -> Type where
         (GetLEDCPins board),
       AssertNameIsAvailable name (GetNames board)
     ) =>
-    BinarySensorOptions ->
+    ButtonOptions ->
     next ->
     ESPF board (AddPinComponent name pin board) next
   MkWifi :: WifiOptions -> next -> ESPF board board next
@@ -349,7 +349,7 @@ button ::
       (GetLEDCPins board),
     AssertNameIsAvailable name (GetNames board)
   ) =>
-  BinarySensorOptions ->
+  ButtonOptions ->
   ESPM board (AddPinComponent name pin board) ()
 button opts = iliftFree (MkButton @name @pin opts ())
 

@@ -551,9 +551,9 @@ buttonExample = do
   _ <-
     button @"reset_button" @19
       def
-        { onPress = powerCycle,
-          binarySensorIcon = Just "mdi:restart",
-          binarySensorEntityCategory = Just "config"
+        { buttonOnPress = powerCycle,
+          buttonIcon = Just "mdi:restart",
+          buttonEntityCategory = Just "config"
         }
   _ <- ota [OTAOptions "esphome" "pass"]
   _ <- webServer 80
