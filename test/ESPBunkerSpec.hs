@@ -13,6 +13,7 @@ module ESPBunkerSpec where
 import Control.Monad.Free (liftF)
 import Data.Aeson
 import Data.Aeson.KeyMap qualified as KM
+import Data.List (isInfixOf)
 import ESPBunker (generateReport, generateYAML)
 import ESPBunker.Actions
 import ESPBunker.Components
@@ -39,6 +40,12 @@ spec = do
     it "shows the cover -> endstop link inline" $ do
       let report = generateReport coverExample
       toString report `shouldContain` "⟶ close_endstop"
+
+  describe "light platform compliance" $ do
+    it "never emits an invalid 'platform: output' for lights" $ do
+      forM_ examples $ \(_name, SomeESPM ex) -> do
+        let yaml = toString (decodeUtf8 @Text (generateYAML ex))
+        not ("platform: output" `isInfixOf` yaml) `shouldBe` True
 
   describe "interpretAction" $ do
     it "noAction produces empty array" $ do

@@ -37,7 +37,6 @@ data BinarySensorOptions = BinarySensorOptions
     onClick :: ESPAction (),
     onDoubleClick :: ESPAction (),
     onLongPress :: ESPAction (),
-    binarySensorDeviceClass :: Maybe DeviceClass,
     binarySensorIcon :: Maybe Text,
     binarySensorEntityCategory :: Maybe Text,
     binarySensorInternal :: Maybe Bool,
@@ -53,7 +52,6 @@ instance Default BinarySensorOptions where
       noAction
       noAction
       noAction
-      Nothing
       Nothing
       Nothing
       Nothing
@@ -94,7 +92,8 @@ data CoverEndstopOptions where
       openEndstop :: BinarySensor openEndstop openPlatform openPin,
       closeEndstop :: BinarySensor closeEndstop closePlatform closePin,
       openDuration :: Int,
-      closeDuration :: Int
+      closeDuration :: Int,
+      endstopCoverOptions :: CoverOptions
     } ->
     CoverEndstopOptions
 
@@ -130,10 +129,6 @@ data LightRGBOptions where
       blue :: Output blue platform
     } ->
     LightRGBOptions
-
-data LightOutputOptions where
-  LightOutputOptions ::
-    forall name. (KnownSymbol name) => Output name GPIO -> LightOutputOptions
 
 data LightMonochromaticOptions where
   LightMonochromaticOptions ::

@@ -24,9 +24,7 @@ import Relude
 type PlatformToOptions :: forall k. k -> Platform -> Type
 type family PlatformToOptions component platform where
   PlatformToOptions BinarySensor GPIO = Maybe DeviceClass
-  PlatformToOptions Switch GPIO = Maybe DeviceClass
   PlatformToOptions Light RGB = LightRGBOptions
-  PlatformToOptions Light Out = LightOutputOptions
   PlatformToOptions Light Monochromatic = LightMonochromaticOptions
   PlatformToOptions Light CWWW = LightCWWWOptions
   PlatformToOptions Output GPIO = OutputGPIOOptions

@@ -20,10 +20,8 @@ import Relude
 
 data Platform
   = GPIO
-  | Out
   | RGB
   | LEDC
-  | ESP32_PWM
   | Monochromatic
   | CWWW
   | Endstop
@@ -58,10 +56,8 @@ instance ToJSON FrameworkVersion where
 
 type family PlatformToSymbol (platform :: Platform) :: Symbol where
   PlatformToSymbol GPIO = "gpio"
-  PlatformToSymbol Out = "output"
   PlatformToSymbol RGB = "rgb"
   PlatformToSymbol LEDC = "ledc"
-  PlatformToSymbol ESP32_PWM = "esp32_pwm"
   PlatformToSymbol Monochromatic = "monochromatic"
   PlatformToSymbol CWWW = "cwww"
   PlatformToSymbol Endstop = "endstop"

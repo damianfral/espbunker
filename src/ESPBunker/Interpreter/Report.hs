@@ -255,8 +255,6 @@ prettyPlatform "adc" = "ADC"
 prettyPlatform "rgb" = "RGB"
 prettyPlatform "cwww" = "CWWW"
 prettyPlatform "endstop" = "Endstop"
-prettyPlatform "output" = "Output"
-prettyPlatform "esp32_pwm" = "ESP32 PWM"
 prettyPlatform "template" = "Template"
 prettyPlatform s = s
 

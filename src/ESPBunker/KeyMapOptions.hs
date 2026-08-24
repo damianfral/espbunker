@@ -82,8 +82,7 @@ instance KeyMapOptions BinarySensorOptions where
           actionField "on_multi_click" onLongPress
         ]
       extraOptions =
-        [ "device_class" .=? binarySensorDeviceClass,
-          "icon" .=? binarySensorIcon,
+        [ "icon" .=? binarySensorIcon,
           "entity_category" .=? binarySensorEntityCategory,
           "internal" .=? binarySensorInternal
         ]
@@ -104,9 +103,6 @@ instance KeyMapOptions LightRGBOptions where
       "green" .= symbolVal (Proxy @green),
       "blue" .= symbolVal (Proxy @blue)
     ]
-
-instance KeyMapOptions LightOutputOptions where
-  toKeyMap (LightOutputOptions @name _) = ["output" .= symbolVal (Proxy @name)]
 
 instance KeyMapOptions LightMonochromaticOptions where
   toKeyMap (LightMonochromaticOptions @output _) =
@@ -132,15 +128,17 @@ instance KeyMapOptions CoverEndstopOptions where
         _closeEndstop
         openDuration
         closeDuration
+        endstopCoverOptions
       ) =
-      [ "open_action" .= interpretAction openAction,
-        "close_action" .= interpretAction closeAction,
-        "stop_action" .= interpretAction stopAction,
-        "open_endstop" .= symbolVal (Proxy @openEndstop),
-        "close_endstop" .= symbolVal (Proxy @closeEndstop),
-        "open_duration" .= String (show openDuration <> "s"),
-        "close_duration" .= String (show closeDuration <> "s")
-      ]
+      toKeyMap endstopCoverOptions
+        <> [ "open_action" .= interpretAction openAction,
+             "close_action" .= interpretAction closeAction,
+             "stop_action" .= interpretAction stopAction,
+             "open_endstop" .= symbolVal (Proxy @openEndstop),
+             "close_endstop" .= symbolVal (Proxy @closeEndstop),
+             "open_duration" .= String (show openDuration <> "s"),
+             "close_duration" .= String (show closeDuration <> "s")
+           ]
 
 instance KeyMapOptions CoverOptions where
   toKeyMap CoverOptions {..} =

@@ -56,7 +56,8 @@ coverExample = do
           openEndstop = openEndstopSensor,
           closeEndstop = closeEndstopSensor,
           openDuration = 30,
-          closeDuration = 30
+          closeDuration = 30,
+          endstopCoverOptions = def
         }
   done
 
@@ -219,7 +220,6 @@ binarySensorWithOptionsExample = do
     binarySensor @"motion_sensor" @GPIO @2
       def
         { onPress = onMotion,
-          binarySensorDeviceClass = Nothing,
           binarySensorIcon = Just "mdi:motion-sensor",
           binarySensorEntityCategory = Just "diagnostic",
           binarySensorInternal = Just False
