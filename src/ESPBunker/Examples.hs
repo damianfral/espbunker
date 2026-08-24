@@ -119,7 +119,7 @@ outputExample = do
 sensorExample :: ESPM ESP32C3 _ ()
 sensorExample = do
   _ <- commonSetup
-  _ <- sensor @"adc_sensor" @ADC @3 def (SensorADCOptions (Just ATTEN_11DB))
+  _ <- sensor @"adc_sensor" @ADC @3 def (SensorADCOptions (Just ATTEN_12DB))
   ledOut <- output @"led_out" @LEDC @2 def
   indicator <-
     light @"indicator" @Monochromatic def $ LightMonochromaticOptions ledOut
@@ -188,7 +188,7 @@ sensorWithOptionsExample = do
           sensorEntityCategory = Just "diagnostic",
           sensorInternal = Just False
         }
-      (SensorADCOptions $ Just ATTEN_11DB)
+      (SensorADCOptions $ Just ATTEN_12DB)
   statusText <- textSensor @"sensor_status"
   _ <-
     interval @"status_update"

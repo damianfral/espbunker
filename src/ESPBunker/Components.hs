@@ -178,14 +178,14 @@ data Attenuation
   = ATTEN_0DB
   | ATTEN_2_5DB
   | ATTEN_6DB
-  | ATTEN_11DB
+  | ATTEN_12DB
   deriving (Show)
 
 instance ToJSON Attenuation where
   toJSON ATTEN_0DB = "0db"
   toJSON ATTEN_2_5DB = "2.5db"
   toJSON ATTEN_6DB = "6db"
-  toJSON ATTEN_11DB = "11db"
+  toJSON ATTEN_12DB = "12db"
 
 --------------------------------------------------------------------------------
 
