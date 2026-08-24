@@ -327,7 +327,7 @@ selectExample = do
   _ <-
     select @"mode_selector"
       def
-        { selectOptions = ["eco", "comfort", "boost"],
+        { selectOptions = "eco" :| ["comfort", "boost"],
           selectInitialOption = Just "eco",
           selectIcon = Just "mdi:thermostat",
           selectEntityCategory = Just "config",

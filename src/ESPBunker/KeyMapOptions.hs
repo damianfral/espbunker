@@ -188,7 +188,7 @@ instance KeyMapOptions SelectOptions where
   toKeyMap SelectOptions {..} =
     KM.fromList
       $ catMaybes
-        [ nonEmptyField "options" selectOptions,
+        [ Just ("options" .= selectOptions),
           "initial_option" .=? selectInitialOption,
           "device_class" .=? selectDeviceClass,
           "icon" .=? selectIcon,

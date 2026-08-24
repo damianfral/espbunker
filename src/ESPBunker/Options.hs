@@ -194,7 +194,7 @@ instance Default OutputLEDCOptions where
 --------------------------------------------------------------------------------
 
 data SelectOptions = SelectOptions
-  { selectOptions :: [Text],
+  { selectOptions :: NonEmpty Text,
     selectInitialOption :: Maybe Text,
     selectDeviceClass :: Maybe DeviceClass,
     selectIcon :: Maybe Text,
@@ -205,7 +205,7 @@ data SelectOptions = SelectOptions
   }
 
 instance Default SelectOptions where
-  def = SelectOptions [] Nothing Nothing Nothing Nothing Nothing Nothing Nothing
+  def = SelectOptions ("default" :| []) Nothing Nothing Nothing Nothing Nothing Nothing Nothing
 
 --------------------------------------------------------------------------------
 
