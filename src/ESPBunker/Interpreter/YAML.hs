@@ -9,6 +9,7 @@ module ESPBunker.Interpreter.YAML (generateYAML) where
 import Control.Monad.Writer (Writer, execWriter, tell)
 import Data.Aeson
 import Data.Aeson.Casing (snakeCase)
+import Data.Aeson.Key qualified as K
 import Data.Proxy
 import Data.Yaml qualified as YAML
 import ESPBunker.Actions (interpretAction)
@@ -25,7 +26,7 @@ import Relude
 
 interpretESP ::
   forall board board'.
-  (KnownSymbol (GetBoardName board)) =>
+  (KnownSymbol (GetBoardName board), KnownSymbol (GetBoardArch board)) =>
   ESPM board board' () -> [Node]
 interpretESP = execWriter . ifoldFree go
   where
@@ -37,13 +38,15 @@ interpretESP = execWriter . ifoldFree go
       tell [espHomeNode] >> next
     go (MkBoard next) = do
       let boardName = symbolVal (Proxy @(GetBoardName board))
+          arch = symbolVal (Proxy @(GetBoardArch board))
+          esp8266framework = ["version" .= String "recommended"]
+          nonEsp8266framework =
+            ["type" .= toJSON FrameworkArduino, "version" .= toJSON Latest]
+          frameworkNode =
+            if arch == "esp8266" then esp8266framework else nonEsp8266framework
           boardSubnode =
-            [ "board" .= boardName,
-              "framework"
-                .= object
-                  [("type", toJSON FrameworkArduino), ("version", toJSON Latest)]
-            ]
-          yamlNode = NodeObject "esp32" boardSubnode
+            ["board" .= boardName, "framework" .= object frameworkNode]
+          yamlNode = NodeObject (K.fromString arch) boardSubnode
       tell [yamlNode] >> next
     go (MkLogger next) = do
       let espHomeNode = NodeObject "logger" mempty
@@ -223,7 +226,7 @@ interpretESP = execWriter . ifoldFree go
 
 generateYAML ::
   forall board board'.
-  (KnownSymbol (GetBoardName board)) =>
+  (KnownSymbol (GetBoardName board), KnownSymbol (GetBoardArch board)) =>
   ESPM board board' () -> ByteString
 generateYAML prog =
   let nodes = interpretESP prog in YAML.encode $ nodesToKeyMap nodes

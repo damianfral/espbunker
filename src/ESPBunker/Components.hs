@@ -212,6 +212,7 @@ newtype EncryptionKey = EncryptionKey {getEncryptionKey :: ByteString}
 data
   Board
     (boardName :: Symbol)
+    (arch :: Symbol)
     (names :: [Symbol])
     (gpioPins :: [Nat])
     (adcPins :: [Nat])
@@ -266,32 +267,36 @@ type family
       (TypeError ('Text "LEDC pin not available: " :<>: 'ShowType pin))
 
 type family GetNames (board :: Type) :: [Symbol] where
-  GetNames (Board _ names _ _ _) = names
+  GetNames (Board _ _ names _ _ _) = names
 
 type family GetGPIOPins (board :: Type) :: [Nat] where
-  GetGPIOPins (Board _ _ gpioPins _ _) = gpioPins
+  GetGPIOPins (Board _ _ _ gpioPins _ _) = gpioPins
 
 type family GetADCPins (board :: Type) :: [Nat] where
-  GetADCPins (Board _ _ _ adcPins _) = adcPins
+  GetADCPins (Board _ _ _ _ adcPins _) = adcPins
 
 type family GetLEDCPins (board :: Type) :: [Nat] where
-  GetLEDCPins (Board _ _ _ _ ledcPins) = ledcPins
+  GetLEDCPins (Board _ _ _ _ _ ledcPins) = ledcPins
 
 type family GetBoardName (board :: Type) :: Symbol where
-  GetBoardName (Board name _ _ _ _) = name
+  GetBoardName (Board name _ _ _ _ _) = name
+
+type family GetBoardArch (board :: Type) :: Symbol where
+  GetBoardArch (Board _ arch _ _ _ _) = arch
 
 type family AddPinComponent (name :: Symbol) (pin :: Nat) (board :: Type) :: Type where
-  AddPinComponent name pin (Board boardName names gpioPins adcPins ledcPins) =
+  AddPinComponent name pin (Board boardName arch names gpioPins adcPins ledcPins) =
     Board
       boardName
+      arch
       (Insert name names)
       (Remove pin gpioPins)
       (Remove pin adcPins)
       (Remove pin ledcPins)
 
 type family AddComponent (name :: Symbol) (board :: Type) :: Type where
-  AddComponent name (Board boardName names gpioPins adcPins ledcPins) =
-    Board boardName (Insert name names) gpioPins adcPins ledcPins
+  AddComponent name (Board boardName arch names gpioPins adcPins ledcPins) =
+    Board boardName arch (Insert name names) gpioPins adcPins ledcPins
 
 --------------------------------------------------------------------------------
 

@@ -618,16 +618,31 @@ switchWithAllOptionsExample = do
   void $ ota [OTAOptions "esphome" "pass"]
   void $ webServer 80
 
+esp8266Setup :: ESPM NodeMCU _ ()
+esp8266Setup = do
+  void $ board @NodeMCU
+  esphome @"esp8266-bunker" def
+  logger
+  void $ wifi $ def & addNetwork "my-ssid" "my-password"
+  void $ ota [OTAOptions "esphome" "pass"]
+
+esp8266Example :: ESPM NodeMCU _ ()
+esp8266Example = do
+  _ <- esp8266Setup
+  _ <- binarySensor @"sensor" @GPIO @0 def Nothing
+  done
+
 data SomeESPM where
   SomeESPM ::
     forall board board'.
-    (KnownSymbol (GetBoardName board)) =>
+    (KnownSymbol (GetBoardName board), KnownSymbol (GetBoardArch board)) =>
     ESPM board board' () -> SomeESPM
 
 examples :: [(Text, SomeESPM)]
 examples =
   [ ("binary sensor", SomeESPM binarySensorExample),
     ("cover", SomeESPM coverExample),
+    ("esp8266", SomeESPM esp8266Example),
     ("light", SomeESPM lightExample),
     ("output", SomeESPM outputExample),
     ("sensor", SomeESPM sensorExample),
