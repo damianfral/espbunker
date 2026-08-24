@@ -9,6 +9,7 @@ module ESPBunker.KeyMapOptions where
 
 import Control.Monad.Free (Free (..))
 import Data.Aeson
+import Data.Aeson.Casing (snakeCase)
 import Data.Aeson.KeyMap (KeyMap)
 import Data.Aeson.KeyMap qualified as KM
 import Data.ByteString.Base64 qualified as B64
@@ -99,19 +100,19 @@ instance KeyMapOptions ButtonOptions where
 
 instance KeyMapOptions LightRGBOptions where
   toKeyMap (LightRGBOptions @red @green @blue _red _green _blue) =
-    [ "red" .= symbolVal (Proxy @red),
-      "green" .= symbolVal (Proxy @green),
-      "blue" .= symbolVal (Proxy @blue)
+    [ "red" .= snakeCase (symbolVal (Proxy @red)),
+      "green" .= snakeCase (symbolVal (Proxy @green)),
+      "blue" .= snakeCase (symbolVal (Proxy @blue))
     ]
 
 instance KeyMapOptions LightMonochromaticOptions where
   toKeyMap (LightMonochromaticOptions @output _) =
-    ["output" .= symbolVal (Proxy @output)]
+    ["output" .= snakeCase (symbolVal (Proxy @output))]
 
 instance KeyMapOptions LightCWWWOptions where
   toKeyMap (LightCWWWOptions @coldWhite @warmWhite _ _ cwTemp wwTemp) =
-    [ "cold_white" .= symbolVal (Proxy @coldWhite),
-      "warm_white" .= symbolVal (Proxy @warmWhite),
+    [ "cold_white" .= snakeCase (symbolVal (Proxy @coldWhite)),
+      "warm_white" .= snakeCase (symbolVal (Proxy @warmWhite)),
       "cold_white_color_temperature" .= cwTemp,
       "warm_white_color_temperature" .= wwTemp
     ]
@@ -134,8 +135,8 @@ instance KeyMapOptions CoverEndstopOptions where
         <> [ "open_action" .= interpretAction openAction,
              "close_action" .= interpretAction closeAction,
              "stop_action" .= interpretAction stopAction,
-             "open_endstop" .= symbolVal (Proxy @openEndstop),
-             "close_endstop" .= symbolVal (Proxy @closeEndstop),
+             "open_endstop" .= snakeCase (symbolVal (Proxy @openEndstop)),
+             "close_endstop" .= snakeCase (symbolVal (Proxy @closeEndstop)),
              "open_duration" .= String (show openDuration <> "s"),
              "close_duration" .= String (show closeDuration <> "s")
            ]
