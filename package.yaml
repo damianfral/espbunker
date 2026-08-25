@@ -1,5 +1,6 @@
 ---
 name: espbunker
+synopsis: Haskell DSL for generating ESPHome YAML configurations
 version: 1.0.1
 
 license: MIT
